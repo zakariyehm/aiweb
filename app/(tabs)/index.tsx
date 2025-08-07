@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+
 export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState(5);
-
-
 
   const days = [
     { day: 'F', date: '01' },
@@ -17,10 +16,9 @@ export default function HomeScreen() {
   ];
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Inta kale ee koodhkaaga waa sidii hore... */}
-        <View style={styles.header}>
+    <SafeAreaView style={styles.container}>
+      {/* Header - now outside ScrollView so it doesn't scroll */}
+      <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="logo-apple" size={24} color="#000" />
           <Text style={styles.appName}>Cal AI</Text>
@@ -31,94 +29,95 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <View style={styles.dateSelector}>
-        {days.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.dateCircle,
-              selectedDate === index && styles.selectedDateCircle
-            ]}
-            onPress={() => setSelectedDate(index)}
-          >
-            <Text style={[
-              styles.dayText,
-              selectedDate === index && styles.selectedDayText
-            ]}>
-              {item.day}
+      {/* ScrollView - now only contains the scrollable content */}
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.dateSelector}>
+          {days.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.dateCircle,
+                selectedDate === index && styles.selectedDateCircle
+              ]}
+              onPress={() => setSelectedDate(index)}
+            >
+              <Text style={[
+                styles.dayText,
+                selectedDate === index && styles.selectedDayText
+              ]}>
+                {item.day}
+              </Text>
+              <Text style={[
+                styles.dateText,
+                selectedDate === index && styles.selectedDateText
+              ]}>
+                {item.date}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.calorieCard}>
+          <View style={styles.calorieLeft}>
+            <Text style={styles.calorieNumber}>1896</Text>
+            <Text style={styles.calorieLabel}>Calories left</Text>
+          </View>
+          <View style={styles.calorieRight}>
+            <View style={styles.progressCircle}>
+              <View style={styles.progressArc} />
+              <Ionicons name="flame" size={24} color="#000" style={styles.progressIcon} />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.macroContainer}>
+          <View style={styles.macroCard}>
+            <Text style={styles.macroNumber}>136g</Text>
+            <Text style={styles.macroLabel}>Protein left</Text>
+            <View style={[styles.macroIcon, { backgroundColor: '#FF6B6B' }]}>
+              <Ionicons name="flash" size={16} color="white" />
+            </View>
+          </View>
+          
+          <View style={styles.macroCard}>
+            <Text style={styles.macroNumber}>219g</Text>
+            <Text style={styles.macroLabel}>Carbs left</Text>
+            <View style={[styles.macroIcon, { backgroundColor: '#8B4513' }]}>
+              <Ionicons name="leaf" size={16} color="white" />
+            </View>
+          </View>
+          
+          <View style={styles.macroCard}>
+            <Text style={styles.macroNumber}>52g</Text>
+            <Text style={styles.macroLabel}>Fats left</Text>
+            <View style={[styles.macroIcon, { backgroundColor: '#4A90E2' }]}>
+              <Ionicons name="water" size={16} color="white" />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.paginationDots}>
+          <View style={styles.dot} />
+          <View style={styles.dot} />
+        </View>
+
+        <View style={styles.recentlyEatenSection}>
+          <Text style={styles.sectionTitle}>Recently eaten</Text>
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>You haven't uploaded any food</Text>
+            <Text style={styles.emptyDescription}>
+              Start tracking today's meals by taking a quick pictures
             </Text>
-            <Text style={[
-              styles.dateText,
-              selectedDate === index && styles.selectedDateText
-            ]}>
-              {item.date}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.calorieCard}>
-        <View style={styles.calorieLeft}>
-          <Text style={styles.calorieNumber}>1896</Text>
-          <Text style={styles.calorieLabel}>Calories left</Text>
-        </View>
-        <View style={styles.calorieRight}>
-          <View style={styles.progressCircle}>
-            <View style={styles.progressArc} />
-            <Ionicons name="flame" size={24} color="#000" style={styles.progressIcon} />
+            <View style={styles.arrowContainer}>
+              <Ionicons name="arrow-down" size={24} color="#666" style={styles.arrow} />
+            </View>
           </View>
         </View>
-      </View>
-
-      <View style={styles.macroContainer}>
-        <View style={styles.macroCard}>
-          <Text style={styles.macroNumber}>136g</Text>
-          <Text style={styles.macroLabel}>Protein left</Text>
-          <View style={[styles.macroIcon, { backgroundColor: '#FF6B6B' }]}>
-            <Ionicons name="flash" size={16} color="white" />
-          </View>
-        </View>
-        
-        <View style={styles.macroCard}>
-          <Text style={styles.macroNumber}>219g</Text>
-          <Text style={styles.macroLabel}>Carbs left</Text>
-          <View style={[styles.macroIcon, { backgroundColor: '#8B4513' }]}>
-            <Ionicons name="leaf" size={16} color="white" />
-          </View>
-        </View>
-        
-        <View style={styles.macroCard}>
-          <Text style={styles.macroNumber}>52g</Text>
-          <Text style={styles.macroLabel}>Fats left</Text>
-          <View style={[styles.macroIcon, { backgroundColor: '#4A90E2' }]}>
-            <Ionicons name="water" size={16} color="white" />
-          </View>
-        </View>
-      </View>
-
-      <View style={styles.paginationDots}>
-        <View style={styles.dot} />
-        <View style={styles.dot} />
-      </View>
-
-      <View style={styles.recentlyEatenSection}>
-        <Text style={styles.sectionTitle}>Recently eaten</Text>
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>You haven't uploaded any food</Text>
-          <Text style={styles.emptyDescription}>
-            Start tracking today's meals by taking a quick pictures
-          </Text>
-          <View style={styles.arrowContainer}>
-            <Ionicons name="arrow-down" size={24} color="#666" style={styles.arrow} />
-          </View>
-        </View>
-      </View>
-            </ScrollView>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-// Styles-ka intiisa kale waa sidii hore oo kale...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -131,9 +130,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingVertical: 15,
   },
   headerLeft: {
     flexDirection: 'row',
