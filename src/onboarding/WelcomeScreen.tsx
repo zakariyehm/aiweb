@@ -38,11 +38,10 @@ export default function WelcomeScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FF0100', // Background guud
   },
   content: {
     flex: 1,
@@ -97,26 +96,26 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#fff',       // Midabka qoraalka oo cad
     textAlign: 'center',
     marginBottom: 16,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#fff',       // Midabka qoraalka oo cad
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,
   },
   button: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: '#fff',   // Button background cad
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
-    shadowColor: '#FF6B35',
+    shadowColor: '#FF0100',  // Hooska button-ka midabka guduudka
     shadowOffset: {
       width: 0,
       height: 4,
@@ -126,9 +125,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: '#000',        // Midabka qoraalka button-ka guduud
     fontSize: 18,
     fontWeight: 'bold',
     marginRight: 8,
   },
+  // Icon color ma beddelay JSX gudihiisa
 });
