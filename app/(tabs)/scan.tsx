@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Qaybta shaashadda hore (Initial View)
 const InitialView = ({ onContinue }: { onContinue: () => void }) => {
@@ -174,6 +175,7 @@ export default function ScanScreen() {
   // [CUSUB] State lagu maareeyo doorashada iyo dialog-ga
   const [selectedPlan, setSelectedPlan] = useState('yearly'); // Default waa yearly
   const [isDialogVisible, setDialogVisible] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const handleBack = () => {
     if (showTrialDetails) {
@@ -184,9 +186,9 @@ export default function ScanScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header-ka guud */}
-      <View style={styles.header}>
+      <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
@@ -211,7 +213,7 @@ export default function ScanScreen() {
         onClose={() => setDialogVisible(false)}
         selectedPlan={selectedPlan}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

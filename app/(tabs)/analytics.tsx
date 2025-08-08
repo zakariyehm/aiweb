@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AnalyticsScreen() {
   const [selectedTimeframe, setSelectedTimeframe] = useState('90 Days');
+  const insets = useSafeAreaInsets();
 
   const timeframes = ['90 Days', '6 Months', '1 Year', 'All time'];
 
@@ -25,9 +27,9 @@ export default function AnalyticsScreen() {
   const bmiCategory = getBMICategory(currentBMI);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header - now outside ScrollView so it doesn't scroll */}
-      <View style={styles.header}>
+      <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
         <Text style={styles.headerTitle}>Overview</Text>
       </View>
 
@@ -154,7 +156,7 @@ export default function AnalyticsScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

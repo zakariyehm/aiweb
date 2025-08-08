@@ -1,16 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function WelcomeScreen() {
+  const insets = useSafeAreaInsets();
+  
   const handleGetStarted = () => {
     router.push('/onboarding/personal-info');
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.content, Platform.OS === 'android' && { paddingTop: 20 }]}>
         {/* Illustration */}
         <View style={styles.illustrationContainer}>
           <View style={styles.illustration}>
@@ -35,7 +38,7 @@ export default function WelcomeScreen() {
           <Ionicons name="arrow-forward" size={20} color="#000000" />
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 const styles = StyleSheet.create({

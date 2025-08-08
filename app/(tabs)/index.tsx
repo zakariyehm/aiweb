@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState(5);
+  const insets = useSafeAreaInsets();
 
   const days = [
     { day: 'F', date: '01' },
@@ -16,9 +18,9 @@ export default function HomeScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header - now outside ScrollView so it doesn't scroll */}
-      <View style={styles.header}>
+      <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
         <View style={styles.headerLeft}>
           <Ionicons name="logo-apple" size={24} color="#000" />
           <Text style={styles.appName}>Cal AI</Text>
@@ -114,7 +116,7 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

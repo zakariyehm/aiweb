@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Image, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Image, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SettingItemProps {
   icon: any;
@@ -21,6 +22,7 @@ interface SectionCardProps {
 export default function SettingsScreen() {
   const [addBurnedCalories, setAddBurnedCalories] = useState(true);
   const [rolloverCalories, setRolloverCalories] = useState(true);
+  const insets = useSafeAreaInsets();
 
   const SettingItem = ({ icon, title, subtitle, onPress, showToggle, toggleValue, onToggleChange, showArrow = true }: SettingItemProps) => (
     <TouchableOpacity style={styles.settingItem} onPress={onPress} disabled={!onPress}>
@@ -59,9 +61,9 @@ export default function SettingsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header - now outside ScrollView so it doesn't scroll */}
-      <View style={styles.header}>
+      <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
@@ -162,7 +164,7 @@ export default function SettingsScreen() {
           <Text style={styles.versionText}>VERSION 1.0.98</Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
