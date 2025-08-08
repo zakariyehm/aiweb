@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Modal, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
@@ -37,13 +37,7 @@ const InitialView = ({ onContinue }: { onContinue: () => void }) => {
 };
 
 // Qaybta shaashadda labaad (Trial Offer View)
-const TrialOfferView = () => {
-  const handleStartTrial = () => {
-    console.log('Start 3-Day Free Trial pressed');
-    // Halkan, waxaad aadi kartaa shaashadda xigta ee ah xaqiijinta
-    // router.push('/confirmation-screen'); 
-  };
-  
+const TrialOfferView = ({ selectedPlan, onSelectPlan, onStart }) => {
   return (
     <>
       <Text style={styles.trialTitle}>Start your 3-day FREE trial to continue.</Text>
@@ -80,20 +74,26 @@ const TrialOfferView = () => {
 
       {/* Subscription Options */}
       <View style={styles.optionsContainer}>
-        <TouchableOpacity style={styles.option}>
-          <Text style={styles.optionTitle}>Monthly</Text>
-          <Text style={styles.optionPrice}>$9.99 /mo</Text>
+        <TouchableOpacity 
+          style={[styles.option, selectedPlan === 'monthly' && styles.selectedOption]}
+          onPress={() => onSelectPlan('monthly')}
+        >
+          <Text style={[styles.optionTitle, selectedPlan === 'monthly' && styles.selectedText]}>Monthly</Text>
+          <Text style={[styles.optionPrice, selectedPlan === 'monthly' && styles.selectedText]}>$9.99 /mo</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.option, styles.selectedOption]}>
-          <Text style={[styles.optionTitle, styles.selectedText]}>Yearly</Text>
-          <Text style={[styles.optionPrice, styles.selectedText]}>$2.49/mo</Text>
+        <TouchableOpacity 
+          style={[styles.option, selectedPlan === 'yearly' && styles.selectedOption]}
+          onPress={() => onSelectPlan('yearly')}
+        >
+          <Text style={[styles.optionTitle, selectedPlan === 'yearly' && styles.selectedText]}>Yearly</Text>
+          <Text style={[styles.optionPrice, selectedPlan === 'yearly' && styles.selectedText]}>$2.49/mo</Text>
           <View style={styles.badge}><Text style={styles.badgeText}>3 DAYS FREE</Text></View>
         </TouchableOpacity>
       </View>
       
       <Text style={styles.checkmarkText}>✓ No Payment Due Now</Text>
 
-      <TouchableOpacity style={styles.ctaButton} onPress={handleStartTrial}>
+      <TouchableOpacity style={styles.ctaButton} onPress={onStart}>
         <Text style={styles.ctaButtonText}>Start My 3-Day Free Trial</Text>
       </TouchableOpacity>
 
@@ -103,15 +103,82 @@ const TrialOfferView = () => {
 };
 
 
+// [CUSUB] Shaashadda yar ee lacag bixinta (Payment Dialog Component)
+const PaymentDialog = ({ visible, onClose, selectedPlan }) => {
+  const [phoneNumber, setPhoneNumber] = useState('252');
+
+  const handleSubscription = () => {
+    // Hubi in lambarku sax yahay (ugu yaraan 10 xarafood oo leh 252)
+    if (phoneNumber.length < 10) {
+      Alert.alert("Error", "Please enter a valid Somali phone number (e.g., 25261xxxxxxx).");
+      return;
+    }
+    console.log(`Subscribing to ${selectedPlan} plan with phone number: ${phoneNumber}`);
+    // Halkan ku dar logic-ka dhabta ah ee lacag bixinta
+    Alert.alert("Success", `You have subscribed to the ${selectedPlan} plan!`);
+    onClose(); // Xir shaashadda kadib guusha
+  };
+  
+  // Hubi in user-ku uusan masixi karin '252'
+  const handlePhoneChange = (text) => {
+    if (text.startsWith('252')) {
+      setPhoneNumber(text);
+    }
+  };
+
+  const planDetails = {
+    monthly: { name: 'Cal AI Monthly Plan', price: '$9.99/month' },
+    yearly: { name: 'Cal AI Yearly Plan', price: '$29.99/year' }
+  };
+
+  const currentPlan = planDetails[selectedPlan];
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={styles.dialogOverlay}>
+        <View style={styles.dialogContainer}>
+          <Text style={styles.dialogTitle}>{currentPlan.name}</Text>
+          <Text style={styles.dialogPrice}>Starting today {currentPlan.price}</Text>
+          
+          <Text style={styles.inputLabel}>Enter your phone number</Text>
+          <TextInput
+            style={styles.phoneInput}
+            placeholder="252xxxxxxxxx"
+            value={phoneNumber}
+            onChangeText={handlePhoneChange}
+            keyboardType="phone-pad"
+            maxLength={12}
+          />
+          
+          <TouchableOpacity style={styles.continueButton} onPress={handleSubscription}>
+            <Text style={styles.continueButtonText}>Continue</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={onClose}>
+             <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+
 export default function ScanScreen() {
   const [showTrialDetails, setShowTrialDetails] = useState(false);
+  // [CUSUB] State lagu maareeyo doorashada iyo dialog-ga
+  const [selectedPlan, setSelectedPlan] = useState('yearly'); // Default waa yearly
+  const [isDialogVisible, setDialogVisible] = useState(false);
 
   const handleBack = () => {
     if (showTrialDetails) {
-      // Haddii aan ku jirno shaashadda labaad, ku noqo tii hore
       setShowTrialDetails(false);
     } else {
-      // Haddii aan ku jirno shaashadda hore, gebi ahaanba bax
       router.back();
     }
   };
@@ -123,18 +190,27 @@ export default function ScanScreen() {
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
-        {/* Cinwaanka waxaad ka saari kartaa haddii aadan rabin inuu ka muuqdo shaashadda labaad */}
-        {/* {!showTrialDetails && <Text style={styles.headerTitle}>Subscription</Text>} */}
       </View>
 
       {/* Qaybta hoose ee isbeddelaysa */}
       <View style={styles.content}>
         {showTrialDetails ? (
-          <TrialOfferView />
+          <TrialOfferView 
+            selectedPlan={selectedPlan}
+            onSelectPlan={setSelectedPlan}
+            onStart={() => setDialogVisible(true)} // Fur dialog-ga
+          />
         ) : (
           <InitialView onContinue={() => setShowTrialDetails(true)} />
         )}
       </View>
+
+      {/* [CUSUB] Render-ka dialog-ga lacag bixinta */}
+      <PaymentDialog 
+        visible={isDialogVisible}
+        onClose={() => setDialogVisible(false)}
+        selectedPlan={selectedPlan}
+      />
     </SafeAreaView>
   );
 }
@@ -149,7 +225,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10, // La yareeyay si back button-ka gees uugu dhawaado
+    paddingHorizontal: 10,
     paddingTop: 10,
   },
   backButton: {
@@ -186,29 +262,26 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: 'bold',
   },
-
-  // Styles-ka Shaashadda Hore (InitialView)
   mainHeading: {
     fontSize: 34,
     fontWeight: 'bold',
     color: '#000',
     textAlign: 'center',
     lineHeight: 40,
-    marginTop: 60, // Si qoraalka hoos ugu dego
+    marginTop: 60,
   },
   spacer: {
     flex: 1,
   },
   offerDetails: {
     marginBottom: 20,
+
   },
   checkmarkRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  
-  // Styles-ka Shaashadda Labaad (TrialOfferView)
   trialTitle: {
     fontSize: 32,
     fontWeight: 'bold',
@@ -250,7 +323,7 @@ const styles = StyleSheet.create({
     width: 2,
     height: 25,
     backgroundColor: '#ccc',
-    marginLeft: 18, // Si ay ula simanto icon-ka
+    marginLeft: 18,
     marginBottom: 5,
   },
   optionsContainer: {
@@ -262,19 +335,21 @@ const styles = StyleSheet.create({
   },
   option: {
     flex: 1,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#ddd',
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
+    position: 'relative',
   },
   selectedOption: {
     borderColor: '#000',
-    borderWidth: 2,
+    borderWidth: 2.5,
   },
   optionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#666',
   },
   selectedText: {
     color: '#000',
@@ -297,4 +372,61 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-}); 
+
+  // [CUSUB] Styles-ka Dialog-ga Lacag Bixinta
+  dialogOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  dialogContainer: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    alignItems: 'center',
+  },
+  dialogTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  dialogPrice: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+  },
+  inputLabel: {
+    alignSelf: 'flex-start',
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  phoneInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    padding: 12,
+    width: '100%',
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  continueButton: {
+    backgroundColor: '#007AFF', // Midabka buluugga ah
+    paddingVertical: 16,
+    borderRadius: 30,
+    width: '100%',
+    alignItems: 'center',
+  },
+  continueButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  cancelText: {
+    color: '#007AFF',
+    marginTop: 15,
+    fontSize: 16,
+  }
+});
