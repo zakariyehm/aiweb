@@ -14,7 +14,7 @@ export default function WelcomeScreen() {
         {/* Illustration */}
         <View style={styles.illustrationContainer}>
           <View style={styles.illustration}>
-            <Ionicons name="restaurant" size={60} color="#FF6B35" />
+            <Ionicons name="restaurant" size={60} color="#666666" />
           </View>
           <View style={styles.decorativeCircle1} />
           <View style={styles.decorativeCircle2} />
@@ -32,7 +32,7 @@ export default function WelcomeScreen() {
         {/* Get Started Button */}
         <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
           <Text style={styles.buttonText}>Get Started</Text>
-          <Ionicons name="arrow-forward" size={20} color="#fff" />
+          <Ionicons name="arrow-forward" size={20} color="#000000" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -41,7 +41,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FF0100', // Background guud
+    backgroundColor: '#FFFFFF', // White background
   },
   content: {
     flex: 1,
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#FFE5D9',
+    backgroundColor: '#F5F5F5',
   },
   decorativeCircle2: {
     position: 'absolute',
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E8F4FD',
+    backgroundColor: '#F5F5F5',
   },
   textContainer: {
     alignItems: 'center',
@@ -96,36 +96,36 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',       // Midabka qoraalka oo cad
+    color: '#000000',    // Black text
     textAlign: 'center',
     marginBottom: 16,
   },
   subtitle: {
     fontSize: 16,
-    color: '#fff',       // Midabka qoraalka oo cad
+    color: '#666666',    // Gray text
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,
   },
   button: {
-    backgroundColor: '#fff',   // Button background cad
+    backgroundColor: '#E5E5E5',   // Light gray button background
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
-    shadowColor: '#FF0100',  // Hooska button-ka midabka guduudka
+    shadowColor: '#000000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
   buttonText: {
-    color: '#000',        // Midabka qoraalka button-ka guduud
+    color: '#666666',    // Gray text
     fontSize: 18,
     fontWeight: 'bold',
     marginRight: 8,

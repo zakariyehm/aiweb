@@ -13,20 +13,23 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
 // Color Palette for consistency
 const theme = {
-  primary: '#FF0100',
-  secondary: '#FE6666',
+  primary: '#FFFFFF',
+  secondary: '#F5F5F5',
   white: '#FFFFFF',
   black: '#000000',
-  lightText: 'rgba(255, 255, 255, 0.8)',
-  placeholder: 'rgba(255, 255, 255, 0.7)',
+  lightText: 'rgba(0, 0, 0, 0.6)',
+  placeholder: 'rgba(0, 0, 0, 0.4)',
   gray: '#666666',
   lightGray: '#E5E5E5',
   error: '#FF6B6B',
+  buttonInactive: '#E5E5E5',
+  buttonActive: '#000000',
 };
 
 // Validation functions
@@ -356,7 +359,7 @@ const OnboardingScreen = () => {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       {!planGenerated && !loading && !showCreateAccount && !accountLoading && step > 0 && (
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
               <Text style={styles.backIcon}>‹</Text>
@@ -381,9 +384,28 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   backIcon: {
-    color: theme.white,
+    color: theme.black,
     fontSize: 34,
     fontWeight: 'bold',
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 20,
+  },
+  progressBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: theme.lightGray,
+    borderRadius: 2,
+    marginLeft: 20,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.black,
+    borderRadius: 2,
   },
   // ---- Onboarding Screens (Input & Select) ----
   onboardingContent: {
@@ -393,7 +415,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
   },
   questionText: {
-    color: theme.white,
+    color: theme.black,
     fontSize: 28,
     fontWeight: '600',
     textAlign: 'center',
@@ -402,12 +424,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   textInput: {
-    color: theme.white,
+    color: theme.black,
     fontSize: 52,
     fontWeight: '400',
     textAlign: 'center',
     borderBottomWidth: 2,
-    borderBottomColor: theme.white,
+    borderBottomColor: theme.black,
     paddingBottom: 10,
     marginBottom: 10,
   },
@@ -434,15 +456,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedOptionButton: {
-    backgroundColor: theme.white,
+    backgroundColor: theme.black,
   },
   optionText: {
     fontSize: 18,
-    color: theme.white,
+    color: theme.black,
     fontWeight: '600',
   },
   selectedOptionText: {
-    color: theme.black,
+    color: theme.white,
   },
   continueButton: {
     position: 'absolute',
@@ -453,19 +475,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   continueButtonInactive: {
-    backgroundColor: theme.secondary,
+    backgroundColor: theme.buttonInactive,
   },
   continueButtonActive: {
-    backgroundColor: theme.white,
+    backgroundColor: theme.buttonActive,
   },
   continueTextInactive: {
-    color: theme.white,
+    color: theme.gray,
     fontSize: 18,
     fontWeight: '600',
     textTransform: 'lowercase',
   },
   continueTextActive: {
-    color: theme.black,
+    color: theme.white,
     fontSize: 18,
     fontWeight: '600',
     textTransform: 'lowercase',
@@ -481,14 +503,14 @@ const styles = StyleSheet.create({
     fontSize: 28, 
     fontWeight: 'bold', 
     textAlign: 'center', 
-    color: theme.white,
+    color: theme.black,
     marginBottom: 15,
   },
   subHeader: {
     fontSize: 18, 
     textAlign: 'center', 
     marginBottom: 40, 
-    color: theme.lightText,
+    color: theme.gray,
   },
   planContainer: {
     flexDirection: 'row', 
@@ -506,13 +528,13 @@ const styles = StyleSheet.create({
   },
   planBoxTitle: {
     fontSize: 16, 
-    color: theme.lightText,
+    color: theme.gray,
     fontWeight: '500',
   },
   planValue: {
     fontSize: 24, 
     fontWeight: '700', 
-    color: theme.white, 
+    color: theme.black, 
     marginTop: 5,
   },
   finalContinueButton: {
@@ -522,6 +544,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     width: '100%', 
     marginTop: 30,
+    borderWidth: 1,
+    borderColor: theme.black,
   },
   finalContinueText: {
     color: theme.black,
@@ -539,7 +563,7 @@ const styles = StyleSheet.create({
   createAccountTitle: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: theme.white,
+    color: theme.black,
     textAlign: 'center',
     marginBottom: 60,
     position: 'absolute',
@@ -548,7 +572,7 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     width: '100%',
-    backgroundColor: theme.secondary,
+    backgroundColor: theme.lightGray,
     borderRadius: 12,
     paddingVertical: 16,
     marginBottom: 20,
@@ -561,12 +585,12 @@ const styles = StyleSheet.create({
   googleIcon: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: theme.white,
+    color: theme.gray,
     marginRight: 12,
   },
   googleButtonText: {
     fontSize: 16,
-    color: theme.white,
+    color: theme.gray,
     fontWeight: '500',
   },
   skipButton: {
@@ -574,7 +598,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    color: theme.lightText,
+    color: theme.gray,
     textAlign: 'center',
   },
   loadingText: {
