@@ -37,6 +37,11 @@ export default function WelcomeScreen() {
           <Text style={styles.buttonText}>Get Started</Text>
           <Ionicons name="arrow-forward" size={20} color="#000000" />
         </TouchableOpacity>
+
+        {/* Already have an account text button */}
+        <TouchableOpacity style={styles.alreadyHaveAccountButton} onPress={() => router.push('/onboarding/signin')}>
+          <Text style={styles.alreadyHaveAccountText}>Already have an account? Enter your code</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -132,6 +137,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginRight: 8,
+  },
+  alreadyHaveAccountButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  alreadyHaveAccountText: {
+    color: '#007AFF',    // Blue text for link
+    fontSize: 16,
+    textDecorationLine: 'underline',
   },
   // Icon color ma beddelay JSX gudihiisa
 });

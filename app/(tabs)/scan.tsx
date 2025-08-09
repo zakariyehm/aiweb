@@ -13,9 +13,6 @@ const InitialView = ({ onContinue }: { onContinue: () => void }) => {
         We want you to try CalAI for free.
       </Text>
 
-      {/* Spacer */}
-      <View style={styles.spacer} />
-
       {/* Offer details */}
       <View style={styles.offerDetails}>
         <View style={styles.checkmarkRow}>
@@ -239,6 +236,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingTop: 20,
   },
   ctaButton: {
     backgroundColor: '#000',
@@ -258,6 +256,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+    marginTop: 10,
   },
   checkmarkText: {
     fontSize: 16,
@@ -270,14 +269,11 @@ const styles = StyleSheet.create({
     color: '#000',
     textAlign: 'center',
     lineHeight: 40,
-    marginTop: 60,
-  },
-  spacer: {
-    flex: 1,
+    marginTop: 20,
+    marginBottom: 40,
   },
   offerDetails: {
-    marginBottom: 20,
-
+    marginBottom: 30,
   },
   checkmarkRow: {
     flexDirection: 'row',
