@@ -1,6 +1,6 @@
+import { FontAwesome } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
@@ -22,11 +22,11 @@ export default function HomeScreen() {
       {/* Header - now outside ScrollView so it doesn't scroll */}
       <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
         <View style={styles.headerLeft}>
-          <Ionicons name="logo-apple" size={24} color="#000" />
+          <FontAwesome name="apple" size={24} color="#000" />
           <Text style={styles.appName}>Cal AI</Text>
         </View>
         <View style={styles.headerRight}>
-          <Ionicons name="flame" size={20} color="#FF6B35" />
+          <FontAwesome name="fire" size={20} color="#FF6B35" />
           <Text style={styles.streakText}>0</Text>
         </View>
       </View>
@@ -67,7 +67,7 @@ export default function HomeScreen() {
           <View style={styles.calorieRight}>
             <View style={styles.progressCircle}>
               <View style={styles.progressArc} />
-              <Ionicons name="flame" size={24} color="#000" style={styles.progressIcon} />
+              <FontAwesome name="fire" size={24} color="#000" style={styles.progressIcon} />
             </View>
           </View>
         </View>
@@ -77,7 +77,7 @@ export default function HomeScreen() {
             <Text style={styles.macroNumber}>136g</Text>
             <Text style={styles.macroLabel}>Protein left</Text>
             <View style={[styles.macroIcon, { backgroundColor: '#FF6B6B' }]}>
-              <Ionicons name="flash" size={16} color="white" />
+              <FontAwesome name="bolt" size={16} color="white" />
             </View>
           </View>
           
@@ -85,7 +85,7 @@ export default function HomeScreen() {
             <Text style={styles.macroNumber}>219g</Text>
             <Text style={styles.macroLabel}>Carbs left</Text>
             <View style={[styles.macroIcon, { backgroundColor: '#8B4513' }]}>
-              <Ionicons name="leaf" size={16} color="white" />
+              <FontAwesome name="leaf" size={16} color="white" />
             </View>
           </View>
           
@@ -93,7 +93,7 @@ export default function HomeScreen() {
             <Text style={styles.macroNumber}>52g</Text>
             <Text style={styles.macroLabel}>Fats left</Text>
             <View style={[styles.macroIcon, { backgroundColor: '#4A90E2' }]}>
-              <Ionicons name="water" size={16} color="white" />
+              <FontAwesome name="tint" size={16} color="white" />
             </View>
           </View>
         </View>
@@ -111,7 +111,7 @@ export default function HomeScreen() {
               Start tracking today's meals by taking a quick pictures
             </Text>
             <View style={styles.arrowContainer}>
-              <Ionicons name="arrow-down" size={24} color="#666" style={styles.arrow} />
+              <FontAwesome name="arrow-down" size={24} color="#666" style={styles.arrow} />
             </View>
           </View>
         </View>

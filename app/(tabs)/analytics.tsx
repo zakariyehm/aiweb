@@ -1,6 +1,6 @@
+import { FontAwesome } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AnalyticsScreen() {
@@ -68,7 +68,7 @@ export default function AnalyticsScreen() {
               <View style={[styles.bmiLabel, { backgroundColor: bmiCategory.color }]}>
                 <Text style={styles.bmiLabelText}>{bmiCategory.label}</Text>
               </View>
-              <Ionicons name="information-circle" size={20} color="#666" />
+              <FontAwesome name="info-circle" size={20} color="#666" />
             </View>
             
             <Text style={styles.bmiValue}>{currentBMI}</Text>

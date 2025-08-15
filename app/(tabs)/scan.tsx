@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, Alert, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import React, { useState } from 'react';
+import { Alert, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Qaybta shaashadda hore (Initial View)
@@ -187,7 +187,7 @@ export default function ScanScreen() {
       {/* Header-ka guud */}
       <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <FontAwesome name="arrow-left" size={24} color="#000" />
         </TouchableOpacity>
       </View>
 

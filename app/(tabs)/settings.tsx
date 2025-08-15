@@ -1,6 +1,6 @@
+import { FontAwesome } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Image, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SettingItemProps {
@@ -27,7 +27,7 @@ export default function SettingsScreen() {
   const SettingItem = ({ icon, title, subtitle, onPress, showToggle, toggleValue, onToggleChange, showArrow = true }: SettingItemProps) => (
     <TouchableOpacity style={styles.settingItem} onPress={onPress} disabled={!onPress}>
       <View style={styles.settingItemLeft}>
-        <Ionicons name={icon} size={24} color="#555" style={styles.settingIcon} />
+        <FontAwesome name={icon} size={24} color="#555" style={styles.settingIcon} />
         <View style={styles.settingTextContainer}>
           <Text style={styles.settingTitle}>{title}</Text>
           {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
@@ -42,7 +42,7 @@ export default function SettingsScreen() {
             thumbColor={toggleValue ? '#fff' : '#f4f3f4'}
           />
         ) : showArrow ? (
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          <FontAwesome name="chevron-right" size={20} color="#ccc" />
         ) : null}
       </View>
     </TouchableOpacity>
@@ -52,7 +52,7 @@ export default function SettingsScreen() {
     <View style={styles.sectionCard}>
       {title && (
         <View style={styles.sectionHeader}>
-          <Ionicons name="settings-outline" size={20} color="#666" />
+          <FontAwesome name="cog" size={20} color="#666" />
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
       )}
@@ -84,7 +84,7 @@ export default function SettingsScreen() {
         {/* Invite friends section */}
         <View style={styles.inviteCard}>
           <View style={styles.inviteHeader}>
-            <Ionicons name="people-outline" size={20} color="#333" />
+            <FontAwesome name="users" size={20} color="#333" />
             <Text style={styles.inviteTitle}>Invite friends</Text>
           </View>
           <View style={styles.referralCard}>
@@ -98,16 +98,16 @@ export default function SettingsScreen() {
 
         {/* Settings Options */}
         <SectionCard>
-          <SettingItem icon="person-outline" title="Personal details" onPress={() => {}} />
-          <SettingItem icon="refresh-outline" title="Adjust macronutrients" onPress={() => {}} />
-          <SettingItem icon="flag-outline" title="Goal & current weight" onPress={() => {}} />
-          <SettingItem icon="time-outline" title="Weight history" onPress={() => {}} />
+          <SettingItem icon="user-o" title="Personal details" onPress={() => {}} />
+          <SettingItem icon="refresh" title="Adjust macronutrients" onPress={() => {}} />
+          <SettingItem icon="flag-o" title="Goal & current weight" onPress={() => {}} />
+          <SettingItem icon="clock-o" title="Weight history" onPress={() => {}} />
         </SectionCard>
 
         {/* Preferences Section */}
         <SectionCard title="Preferences">
           <SettingItem
-            icon="flame-outline"
+            icon="fire"
             title="Add Burned Calories"
             subtitle="Add burned calories to daily goal"
             showToggle={true}
@@ -116,7 +116,7 @@ export default function SettingsScreen() {
             showArrow={false}
           />
           <SettingItem
-            icon="refresh-circle-outline"
+            icon="refresh"
             title="Rollover calories"
             subtitle="Add up to 200 left over calories from yesterday into today's daily goal"
             showToggle={true}
@@ -129,22 +129,22 @@ export default function SettingsScreen() {
         {/* Legal/Support Section */}
         <SectionCard>
           <SettingItem
-            icon="document-text-outline"
+            icon="file-text-o"
             title="Terms and Conditions"
             onPress={() => console.log('Terms and Conditions')}
           />
           <SettingItem
-            icon="shield-checkmark-outline"
+            icon="shield"
             title="Privacy Policy"
             onPress={() => console.log('Privacy Policy')}
           />
           <SettingItem
-            icon="mail-outline"
+            icon="envelope-o"
             title="Support Email"
             onPress={() => console.log('Support Email')}
           />
           <SettingItem
-            icon="person-remove-outline"
+            icon="user-times"
             title="Delete Account?"
             onPress={() => console.log('Delete Account')}
           />
@@ -153,7 +153,7 @@ export default function SettingsScreen() {
         {/* Account Action Section */}
         <SectionCard>
           <SettingItem
-            icon="log-out-outline"
+            icon="sign-out"
             title="Logout"
             onPress={() => console.log('Logout')}
           />

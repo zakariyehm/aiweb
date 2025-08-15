@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform, Alert } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SignInScreen() {
@@ -55,7 +55,7 @@ export default function SignInScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackToWelcome}>
-            <Ionicons name="arrow-back" size={24} color="#000000" />
+            <FontAwesome name="arrow-left" size={24} color="#000000" />
           </TouchableOpacity>
           <Text style={styles.title}>Welcome back</Text>
           <View style={styles.placeholder} />
@@ -64,7 +64,7 @@ export default function SignInScreen() {
         {/* Logo */}
         <View style={styles.logoContainer}>
           <View style={styles.logo}>
-            <Ionicons name="restaurant" size={40} color="#007AFF" />
+            <FontAwesome name="cutlery" size={40} color="#007AFF" />
           </View>
           <Text style={styles.appName}>Cal AI</Text>
         </View>
@@ -132,7 +132,7 @@ export default function SignInScreen() {
             onPress={handleGoogleSignIn}
             disabled={isLoading}
           >
-            <Ionicons name="logo-google" size={20} color="#DB4437" />
+            <FontAwesome name="google" size={20} color="#DB4437" />
             <Text style={styles.socialButtonText}>Continue with Google</Text>
           </TouchableOpacity>
 
@@ -140,7 +140,7 @@ export default function SignInScreen() {
             style={[styles.socialButton, styles.disabledButton]} 
             disabled={true}
           >
-            <Ionicons name="logo-apple" size={20} color="#000000" />
+            <FontAwesome name="apple" size={20} color="#000000" />
             <Text style={styles.socialButtonText}>Continue with Apple</Text>
           </TouchableOpacity>
 
@@ -148,7 +148,7 @@ export default function SignInScreen() {
             style={[styles.socialButton, styles.disabledButton]} 
             disabled={true}
           >
-            <Ionicons name="call" size={20} color="#000000" />
+            <FontAwesome name="phone" size={20} color="#000000" />
             <Text style={styles.socialButtonText}>Continue with phone</Text>
           </TouchableOpacity>
         </View>
