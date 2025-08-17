@@ -440,6 +440,9 @@ const OnboardingScreen = () => {
   };
 
   const saveUserToFirestore = async (uid: string, userEmail?: string | null) => {
+    // Generate a unique username without requiring cross-user reads
+    const proposedBase = (onboardingData.firstName || 'user').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'user';
+    const uniqueUsername = `${proposedBase}.${uid.slice(0, 6).toLowerCase()}`;
     const plan = planGenerated ? (() => {
       const base = generatePlan();
       const edits = (onboardingData as any).edits || {};
@@ -459,6 +462,7 @@ const OnboardingScreen = () => {
       profile: {
         ...onboardingData,
         email: userEmail ?? onboardingData.email ?? '',
+        username: uniqueUsername,
       },
       plan,
       createdAt: serverTimestamp(),

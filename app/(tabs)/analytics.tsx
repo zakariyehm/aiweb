@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   },
   weightHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
-  updateButton: { backgroundColor: '#000', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  updateButton: { backgroundColor: '#772CE8', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   updateButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   weightValue: { fontSize: 32, fontWeight: 'bold', color: '#000', marginBottom: 16 },
   infoCard: { backgroundColor: '#f8f9fa', padding: 16, borderRadius: 8, marginBottom: 16 },

@@ -1,8 +1,8 @@
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { signOut } from 'firebase/auth';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,6 +26,19 @@ export default function SettingsScreen() {
   const [addBurnedCalories, setAddBurnedCalories] = useState(true);
   const [rolloverCalories, setRolloverCalories] = useState(true);
   const insets = useSafeAreaInsets();
+  const [profile, setProfile] = useState<any>({});
+  useEffect(() => {
+    // Read profile from Firestore
+    const user = auth.currentUser;
+    if (!user) return;
+    const { doc, onSnapshot } = require('firebase/firestore');
+    const ref = doc(db, 'users', user.uid);
+    const unsub = onSnapshot(ref, (snap: any) => {
+      const data = snap.data() || {};
+      setProfile(data.profile || {});
+    });
+    return unsub;
+  }, []);
 
   const SettingItem = ({ icon, title, subtitle, onPress, showToggle, toggleValue, onToggleChange, showArrow = true }: SettingItemProps) => (
     <TouchableOpacity style={styles.settingItem} onPress={onPress} disabled={!onPress}>
@@ -74,8 +87,8 @@ export default function SettingsScreen() {
         <View style={styles.profileCard}>
           <Image source={{ uri: 'https://via.placeholder.com/60' }} style={styles.profileImage} />
           <View>
-            <Text style={styles.profileName}>Your Name</Text>
-            <Text style={styles.profileAge}>example@email.com</Text>
+            <Text style={styles.profileName}>{profile.firstName || profile.name || 'Your Name'}</Text>
+            <Text style={styles.profileAge}>{profile.email || 'example@email.com'}</Text>
           </View>
         </View>
 
@@ -83,13 +96,13 @@ export default function SettingsScreen() {
         <View style={styles.listSection}>
           <Text style={styles.sectionBadge}>MY ACCOUNT</Text>
           {[
-            { label: 'Name', value: 'Your Name' },
-            { label: 'Username', value: 'username' },
-            { label: 'Age', value: '—' },
-            { label: 'Mobile Number', value: '—' },
-            { label: 'Email', value: 'example@email.com' },
-            { label: 'Password', value: '' },
-            { label: 'Two-Factor Authentication', value: '' },
+            { label: 'Name', value: profile.firstName || profile.name || '', key: 'name' },
+            { label: 'Username', value: profile.username || '', key: 'username' },
+            { label: 'Age', value: profile.age ? String(profile.age) : '—', key: 'age' },
+            { label: 'Mobile Number', value: profile.phone || '—', key: 'phone' },
+            { label: 'Email', value: profile.email || '', key: 'email' },
+            { label: 'Password', value: '', key: 'password' },
+            { label: 'Gender', value: profile.gender || '—', key: 'gender' },
           ].map((row, idx) => (
             <TouchableOpacity key={row.label + idx} style={styles.row} onPress={() => {}}>
               <View style={styles.rowLeft}>
@@ -267,7 +280,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sectionBadge: {
-    color: '#2ECC71',
+    color: '#772CE8',
     fontSize: 12,
     fontWeight: '700',
     marginLeft: 16,
