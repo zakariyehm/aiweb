@@ -64,100 +64,71 @@ export default function SettingsScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header - now outside ScrollView so it doesn't scroll */}
-      <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}> 
+      <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}> 
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
-      {/* ScrollView - now only contains the scrollable content */}
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* User Profile Section */}
+        {/* Profile quick info */}
         <View style={styles.profileCard}>
-          <Image
-            source={{ uri: 'https://via.placeholder.com/60' }}
-            style={styles.profileImage}
-          />
+          <Image source={{ uri: 'https://via.placeholder.com/60' }} style={styles.profileImage} />
           <View>
-            <Text style={styles.profileName}>Abu Zkrr</Text>
-            <Text style={styles.profileAge}>23 years old</Text>
+            <Text style={styles.profileName}>Your Name</Text>
+            <Text style={styles.profileAge}>example@email.com</Text>
           </View>
         </View>
 
-        {/* Invite friends section */}
-        <View style={styles.inviteCard}>
-          <View style={styles.inviteHeader}>
-            <FontAwesome name="users" size={20} color="#333" />
-            <Text style={styles.inviteTitle}>Invite friends</Text>
-          </View>
-          <View style={styles.referralCard}>
-            <View style={styles.referralImageBackground} />
-            <Text style={styles.referralText}>The journey is easier together.</Text>
-            <TouchableOpacity style={styles.referralButton}>
-              <Text style={styles.referralButtonText}>Refer a friend to earn $</Text>
+        {/* MY ACCOUNT */}
+        <View style={styles.listSection}>
+          <Text style={styles.sectionBadge}>MY ACCOUNT</Text>
+          {[
+            { label: 'Name', value: 'Your Name' },
+            { label: 'Username', value: 'username' },
+            { label: 'Age', value: '—' },
+            { label: 'Mobile Number', value: '—' },
+            { label: 'Email', value: 'example@email.com' },
+            { label: 'Password', value: '' },
+            { label: 'Two-Factor Authentication', value: '' },
+          ].map((row, idx) => (
+            <TouchableOpacity key={row.label + idx} style={styles.row} onPress={() => {}}>
+              <View style={styles.rowLeft}>
+                <Text style={styles.rowLabel}>{row.label}</Text>
+              </View>
+              <View style={styles.rowRight}>
+                {row.value ? <Text style={styles.rowValue}>{row.value}</Text> : null}
+                <FontAwesome name="chevron-right" size={16} color="#bbb" />
+              </View>
             </TouchableOpacity>
-          </View>
+          ))}
         </View>
 
-        {/* Settings Options */}
-        <SectionCard>
-          <SettingItem icon="user-o" title="Personal details" onPress={() => {}} />
-          <SettingItem icon="refresh" title="Adjust macronutrients" onPress={() => {}} />
-          <SettingItem icon="flag-o" title="Goal & current weight" onPress={() => {}} />
-          <SettingItem icon="clock-o" title="Weight history" onPress={() => {}} />
-        </SectionCard>
+        {/* ACCOUNT ACTIONS */}
+        <View style={styles.listSection}>
+          <Text style={styles.sectionBadge}>ACCOUNT ACTIONS</Text>
+          {[
+            { label: 'Notifications' },
+            { label: 'Delete Account' },
+            { label: 'Privacy Policy' },
+            { label: 'Terms of Service' },
+            { label: 'Version', value: '1.0.98', showChevron: false },
+          ].map((row, idx) => (
+            <TouchableOpacity key={row.label + idx} style={styles.row} onPress={() => {}}>
+              <View style={styles.rowLeft}>
+                <Text style={styles.rowLabel}>{row.label}</Text>
+              </View>
+              <View style={styles.rowRight}>
+                {row.value ? <Text style={styles.rowValue}>{row.value}</Text> : null}
+                {row.showChevron === false ? null : <FontAwesome name="chevron-right" size={16} color="#bbb" />}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        {/* Preferences Section */}
-        <SectionCard title="Preferences">
-          <SettingItem
-            icon="fire"
-            title="Add Burned Calories"
-            subtitle="Add burned calories to daily goal"
-            showToggle={true}
-            toggleValue={addBurnedCalories}
-            onToggleChange={setAddBurnedCalories}
-            showArrow={false}
-          />
-          <SettingItem
-            icon="refresh"
-            title="Rollover calories"
-            subtitle="Add up to 200 left over calories from yesterday into today's daily goal"
-            showToggle={true}
-            toggleValue={rolloverCalories}
-            onToggleChange={setRolloverCalories}
-            showArrow={false}
-          />
-        </SectionCard>
-
-        {/* Legal/Support Section */}
-        <SectionCard>
-          <SettingItem
-            icon="file-text-o"
-            title="Terms and Conditions"
-            onPress={() => console.log('Terms and Conditions')}
-          />
-          <SettingItem
-            icon="shield"
-            title="Privacy Policy"
-            onPress={() => console.log('Privacy Policy')}
-          />
-          <SettingItem
-            icon="envelope-o"
-            title="Support Email"
-            onPress={() => console.log('Support Email')}
-          />
-          <SettingItem
-            icon="user-times"
-            title="Delete Account?"
-            onPress={() => console.log('Delete Account')}
-          />
-        </SectionCard>
-
-        {/* Account Action Section */}
-        <SectionCard>
-          <SettingItem
-            icon="sign-out"
-            title="Logout"
+        {/* Logout */}
+        <View style={[styles.listSection, { marginBottom: 24 }]}> 
+          <TouchableOpacity
+            style={[styles.row, { justifyContent: 'center' }]}
             onPress={async () => {
               Alert.alert(
                 'Logout',
@@ -177,13 +148,12 @@ export default function SettingsScreen() {
                 ]
               );
             }}
-          />
-        </SectionCard>
-
-        {/* Version Info */}
-        <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>VERSION 1.0.98</Text>
+          >
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* Version container removed; version shown above inside actions */}
       </ScrollView>
     </View>
   );
@@ -288,6 +258,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     gap: 8,
+  },
+  listSection: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  sectionBadge: {
+    color: '#2ECC71',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 16,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#fff',
+  },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  rowLabel: {
+    fontSize: 15,
+    color: '#222',
+  },
+  rowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rowValue: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 8,
+  },
+  logoutText: {
+    color: '#E53935',
+    fontWeight: '700',
+    fontSize: 16,
   },
   sectionTitle: {
     fontSize: 16,
