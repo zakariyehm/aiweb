@@ -165,6 +165,7 @@ const OnboardingScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [accountError, setAccountError] = useState('');
+  const [accountInfo, setAccountInfo] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [showTimeToGenerate, setShowTimeToGenerate] = useState(false);
   const [showLoadingSetup, setShowLoadingSetup] = useState(false);
@@ -466,9 +467,11 @@ const OnboardingScreen = () => {
   const handleEmailPasswordSignUp = async () => {
     if (!email.trim() || !password.trim()) {
       setAccountError('Please enter email and password');
+      setAccountInfo('');
       return;
     }
     setAccountError('');
+    setAccountInfo('');
     setAccountLoading(true);
     try {
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password.trim());
@@ -477,10 +480,12 @@ const OnboardingScreen = () => {
       await saveUserToFirestore(cred.user.uid);
       setAccountLoading(false);
       console.log('Sign up success for uid:', cred.user.uid);
-      router.replace('/(tabs)');
+      setAccountInfo('Account created successfully. Redirecting...');
+      setTimeout(() => router.replace('/(tabs)'), 800);
     } catch (err: any) {
       setAccountLoading(false);
       console.error('Sign up error:', err);
+      setAccountInfo('');
       const code = err?.code as string | undefined;
       switch (code) {
         case 'auth/operation-not-allowed':
@@ -665,6 +670,9 @@ const OnboardingScreen = () => {
           </View>
           {!!accountError && (
             <Text style={{ color: theme.error, width: '100%', marginBottom: 8 }}>{accountError}</Text>
+          )}
+          {!!accountInfo && (
+            <Text style={{ color: '#2E7D32', width: '100%', marginTop: 4 }}>{accountInfo}</Text>
           )}
           <TouchableOpacity style={styles.finalContinueButton} onPress={handleEmailPasswordSignUp}>
             <Text style={styles.finalContinueText}>{accountLoading ? 'Creating...' : 'Create account'}</Text>
@@ -1147,20 +1155,18 @@ const styles = StyleSheet.create({
   // ---- Create Account Screen Styles ----
   createAccountContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 30,
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+    paddingHorizontal: 24,
+    paddingTop: 32,
     backgroundColor: theme.primary,
   },
   createAccountTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: theme.black,
-    textAlign: 'center',
-    marginBottom: 60,
-    position: 'absolute',
-    top: '25%',
-    width: '100%',
+    textAlign: 'left',
+    marginBottom: 24,
   },
   googleButton: {
     width: '100%',

@@ -1,21 +1,24 @@
 import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { fetchSignInMethodsForEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
   const insets = useSafeAreaInsets();
 
   const handleSignIn = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setErrorMessage('Please fill in both email and password.');
+      setInfoMessage('');
       return;
     }
 
@@ -26,16 +29,52 @@ export default function SignInScreen() {
       if (!userDoc.exists()) {
         setIsLoading(false);
         console.warn('Login succeeded but no user doc found in Firestore for uid:', cred.user.uid);
-        Alert.alert('Please get started', 'No profile found. Create an account first.');
+        setErrorMessage('We could not find your profile. Please create your account first.');
+        setInfoMessage('');
         return;
       }
       setIsLoading(false);
       console.log('Sign in success for uid:', cred.user.uid);
-      router.replace('/(tabs)');
-    } catch (error) {
+      setErrorMessage('');
+      setInfoMessage('Signed in successfully. Redirecting...');
+      setTimeout(() => router.replace('/(tabs)'), 600);
+    } catch (error: any) {
       setIsLoading(false);
       console.error('Sign in error:', error);
-      Alert.alert('Error', 'Sign in failed. Please try again.');
+      setInfoMessage('');
+      const code = error?.code as string | undefined;
+      if (code === 'auth/invalid-email') {
+        setErrorMessage('Invalid email address.');
+        return;
+      }
+      if (code === 'auth/user-disabled') {
+        setErrorMessage('This account has been disabled.');
+        return;
+      }
+      if (code === 'auth/too-many-requests') {
+        setErrorMessage('Too many attempts. Try again later.');
+        return;
+      }
+      if (code === 'auth/network-request-failed') {
+        setErrorMessage('Network error. Check your connection and try again.');
+        return;
+      }
+      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+        try {
+          const methods = await fetchSignInMethodsForEmail(auth, email.trim());
+          if (!methods || methods.length === 0) {
+            setErrorMessage('No account found for this email. Please create an account.');
+          } else if (methods.includes('password')) {
+            setErrorMessage('Incorrect password. Please try again.');
+          } else {
+            setErrorMessage('This email is registered with a different sign-in method.');
+          }
+        } catch {
+          setErrorMessage('Sign in failed. Please try again.');
+        }
+        return;
+      }
+      setErrorMessage('Sign in failed. Please try again.');
     }
   };
 
@@ -50,7 +89,7 @@ export default function SignInScreen() {
       }, 1000);
     } catch (error) {
       setIsLoading(false);
-      Alert.alert('Error', 'Google sign in failed. Please try again.');
+      setErrorMessage('Google sign in failed. Please try again.');
     }
   };
 
@@ -59,7 +98,7 @@ export default function SignInScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 16 }]}>
       <View style={[styles.content, Platform.OS === 'android' && { paddingTop: 20 }]}>
         {/* Header */}
         <View style={styles.header}>
@@ -118,6 +157,13 @@ export default function SignInScreen() {
             </Text>
           </TouchableOpacity>
 
+          {!!errorMessage && (
+            <Text style={{ color: '#E53935', marginTop: 10, textAlign: 'center' }}>{errorMessage}</Text>
+          )}
+          {!!infoMessage && (
+            <Text style={{ color: '#2E7D32', marginTop: 10, textAlign: 'center' }}>{infoMessage}</Text>
+          )}
+
           {/* Don't have account */}
           <View style={styles.noAccountContainer}>
             <Text style={styles.noAccountText}>Don't have an account? </Text>
@@ -145,25 +191,11 @@ export default function SignInScreen() {
             <Text style={styles.socialButtonText}>Continue with Google</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.socialButton, styles.disabledButton]} 
-            disabled={true}
-          >
-            <FontAwesome name="apple" size={20} color="#000000" />
-            <Text style={styles.socialButtonText}>Continue with Apple</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.socialButton, styles.disabledButton]} 
-            disabled={true}
-          >
-            <FontAwesome name="phone" size={20} color="#000000" />
-            <Text style={styles.socialButtonText}>Continue with phone</Text>
-          </TouchableOpacity>
+          {/* Phone sign-in removed */}
         </View>
 
         {/* Footer Links */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, Platform.OS === 'android' && { marginBottom: 24 }]}>
           <TouchableOpacity>
             <Text style={styles.footerLink}>Terms of Use</Text>
           </TouchableOpacity>
@@ -186,6 +218,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingVertical: 20,
+    justifyContent: 'space-between',
   },
   header: {
     flexDirection: 'row',
@@ -337,8 +370,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 'auto',
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   footerLink: {
     fontSize: 14,
