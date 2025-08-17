@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -155,6 +156,7 @@ const validateDesiredWeight = (value: string): { isValid: boolean; error: string
 };
 
 const OnboardingScreen = () => {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
   const [currentValue, setCurrentValue] = useState('');
   const [onboardingData, setOnboardingData] = useState<Record<string, any>>({});
@@ -427,7 +429,6 @@ const OnboardingScreen = () => {
         router.replace('/(tabs)');
       })
       .catch((err) => {
-        console.error('Skip (anonymous sign-in) failed:', err);
         setShowSkipLoading(false);
         const code = (err && (err.code || err?.message)) || '';
         if (String(code).includes('auth/operation-not-allowed')) {
@@ -438,7 +439,7 @@ const OnboardingScreen = () => {
       });
   };
 
-  const saveUserToFirestore = async (uid: string) => {
+  const saveUserToFirestore = async (uid: string, userEmail?: string | null) => {
     const plan = planGenerated ? (() => {
       const base = generatePlan();
       const edits = (onboardingData as any).edits || {};
@@ -457,6 +458,7 @@ const OnboardingScreen = () => {
     await setDoc(doc(db, 'users', uid), {
       profile: {
         ...onboardingData,
+        email: userEmail ?? onboardingData.email ?? '',
       },
       plan,
       createdAt: serverTimestamp(),
@@ -477,14 +479,12 @@ const OnboardingScreen = () => {
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password.trim());
       const firstName = onboardingData.firstName || 'User';
       try { await updateProfile(cred.user, { displayName: firstName }); } catch {}
-      await saveUserToFirestore(cred.user.uid);
+      await saveUserToFirestore(cred.user.uid, cred.user.email ?? email.trim());
       setAccountLoading(false);
-      console.log('Sign up success for uid:', cred.user.uid);
       setAccountInfo('Account created successfully. Redirecting...');
       setTimeout(() => router.replace('/(tabs)'), 800);
     } catch (err: any) {
       setAccountLoading(false);
-      console.error('Sign up error:', err);
       setAccountInfo('');
       const code = err?.code as string | undefined;
       switch (code) {
@@ -620,7 +620,7 @@ const OnboardingScreen = () => {
       return <ActivityIndicator size="large" color={theme.white} />;
     }
 
-    if (accountLoading) {
+    if (accountLoading && !showCreateAccount) {
       return (
         <View style={styles.centeredResult}>
           <ActivityIndicator size="large" color={theme.white} />
@@ -642,7 +642,7 @@ const OnboardingScreen = () => {
 
     if (showCreateAccount) {
       return (
-        <View style={styles.createAccountContainer}>
+        <View style={[styles.createAccountContainer, { paddingTop: Math.max(24, insets.top + 8) }]}>
           <Text style={styles.createAccountTitle}>Create an account</Text>
           <View style={{ width: '100%', marginBottom: 12 }}>
             <Text style={{ fontSize: 14, color: theme.gray, marginBottom: 6 }}>Email</Text>
@@ -674,17 +674,25 @@ const OnboardingScreen = () => {
           {!!accountInfo && (
             <Text style={{ color: '#2E7D32', width: '100%', marginTop: 4 }}>{accountInfo}</Text>
           )}
-          <TouchableOpacity style={styles.finalContinueButton} onPress={handleEmailPasswordSignUp}>
-            <Text style={styles.finalContinueText}>{accountLoading ? 'Creating...' : 'Create account'}</Text>
+          <TouchableOpacity 
+            style={[styles.finalContinueButton, accountLoading && { opacity: 0.8 }]} 
+            onPress={handleEmailPasswordSignUp}
+            disabled={accountLoading}
+          >
+            {accountLoading ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={theme.black} style={{ marginRight: 8 }} />
+                <Text style={styles.finalContinueText}>Creating...</Text>
+              </View>
+            ) : (
+              <Text style={styles.finalContinueText}>Create account</Text>
+            )}
           </TouchableOpacity>
           <TouchableOpacity style={[styles.googleButton, { marginTop: 16 }]} onPress={handleGoogleSignIn}>
             <View style={styles.googleButtonContent}>
               <Text style={styles.googleIcon}>G</Text>
               <Text style={styles.googleButtonText}>Sign in with Google</Text>
             </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-            <Text style={styles.skipText}>Skip</Text>
           </TouchableOpacity>
         </View>
       );

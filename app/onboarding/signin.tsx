@@ -28,19 +28,16 @@ export default function SignInScreen() {
       const userDoc = await getDoc(doc(db, 'users', cred.user.uid));
       if (!userDoc.exists()) {
         setIsLoading(false);
-        console.warn('Login succeeded but no user doc found in Firestore for uid:', cred.user.uid);
         setErrorMessage('We could not find your profile. Please create your account first.');
         setInfoMessage('');
         return;
       }
       setIsLoading(false);
-      console.log('Sign in success for uid:', cred.user.uid);
       setErrorMessage('');
       setInfoMessage('Signed in successfully. Redirecting...');
       setTimeout(() => router.replace('/(tabs)'), 600);
     } catch (error: any) {
       setIsLoading(false);
-      console.error('Sign in error:', error);
       setInfoMessage('');
       const code = error?.code as string | undefined;
       if (code === 'auth/invalid-email') {

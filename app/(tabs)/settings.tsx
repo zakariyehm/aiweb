@@ -3,7 +3,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import React, { useState } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SettingItemProps {
@@ -159,13 +159,23 @@ export default function SettingsScreen() {
             icon="sign-out"
             title="Logout"
             onPress={async () => {
-              try {
-                await signOut(auth);
-                console.log('Signed out successfully');
-                router.replace('/onboarding/welcome');
-              } catch (e) {
-                console.error('Logout error', e);
-              }
+              Alert.alert(
+                'Logout',
+                'Are you sure you want to sign out?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Yes, sign out',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await signOut(auth);
+                        router.replace('/onboarding/welcome');
+                      } catch (e) {}
+                    },
+                  },
+                ]
+              );
             }}
           />
         </SectionCard>

@@ -37,8 +37,7 @@ export default function HomeScreen() {
           setPlan(null);
         }
         setLoadingPlan(false);
-      }, (err) => {
-        console.error('Firestore plan subscribe error:', err);
+      }, () => {
         setLoadingPlan(false);
       });
       return () => unsubDoc();
