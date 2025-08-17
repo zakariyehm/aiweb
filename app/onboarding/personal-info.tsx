@@ -1,7 +1,10 @@
 import DailyRecommendationCard, { Recommendation } from '@/components/DailyRecommendationCard';
+import { auth, db } from '@/lib/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { createUserWithEmailAndPassword, signInAnonymously, updateProfile } from 'firebase/auth';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -159,6 +162,9 @@ const OnboardingScreen = () => {
   const [planGenerated, setPlanGenerated] = useState(false);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [accountLoading, setAccountLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [accountError, setAccountError] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [showTimeToGenerate, setShowTimeToGenerate] = useState(false);
   const [showLoadingSetup, setShowLoadingSetup] = useState(false);
@@ -389,11 +395,110 @@ const OnboardingScreen = () => {
 
   const handleSkip = () => {
     setShowSkipLoading(true);
-    // Simulate skip process
-    setTimeout(() => {
-      setShowSkipLoading(false);
+    // Create an anonymous account and persist the collected onboarding data
+    signInAnonymously(auth)
+      .then(async (cred) => {
+        const uid = cred.user.uid;
+        const plan = planGenerated ? (() => {
+          const base = generatePlan();
+          const edits = (onboardingData as any).edits || {};
+          return {
+            calories: edits.calories ?? base.calories,
+            protein: edits.protein ?? base.protein,
+            carbs: edits.carbs ?? base.carbs,
+            fat: edits.fat ?? base.fat,
+            bmr: base.bmr,
+            tdee: base.tdee,
+            goal: base.goal,
+            currentWeight: base.currentWeight,
+            desiredWeight: base.desiredWeight,
+          };
+        })() : null;
+        await setDoc(doc(db, 'users', uid), {
+          profile: {
+            ...onboardingData,
+          },
+          plan,
+          createdAt: serverTimestamp(),
+          isGuest: true,
+        }, { merge: true });
+        setShowSkipLoading(false);
+        router.replace('/(tabs)');
+      })
+      .catch((err) => {
+        console.error('Skip (anonymous sign-in) failed:', err);
+        setShowSkipLoading(false);
+        const code = (err && (err.code || err?.message)) || '';
+        if (String(code).includes('auth/operation-not-allowed')) {
+          setAccountError('Please enable Anonymous sign-in in Firebase Authentication to use Skip.');
+        } else {
+          setAccountError('Failed to skip. Please try again.');
+        }
+      });
+  };
+
+  const saveUserToFirestore = async (uid: string) => {
+    const plan = planGenerated ? (() => {
+      const base = generatePlan();
+      const edits = (onboardingData as any).edits || {};
+      return {
+        calories: edits.calories ?? base.calories,
+        protein: edits.protein ?? base.protein,
+        carbs: edits.carbs ?? base.carbs,
+        fat: edits.fat ?? base.fat,
+        bmr: base.bmr,
+        tdee: base.tdee,
+        goal: base.goal,
+        currentWeight: base.currentWeight,
+        desiredWeight: base.desiredWeight,
+      };
+    })() : null;
+    await setDoc(doc(db, 'users', uid), {
+      profile: {
+        ...onboardingData,
+      },
+      plan,
+      createdAt: serverTimestamp(),
+      isGuest: false,
+    }, { merge: true });
+  };
+
+  const handleEmailPasswordSignUp = async () => {
+    if (!email.trim() || !password.trim()) {
+      setAccountError('Please enter email and password');
+      return;
+    }
+    setAccountError('');
+    setAccountLoading(true);
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password.trim());
+      const firstName = onboardingData.firstName || 'User';
+      try { await updateProfile(cred.user, { displayName: firstName }); } catch {}
+      await saveUserToFirestore(cred.user.uid);
+      setAccountLoading(false);
+      console.log('Sign up success for uid:', cred.user.uid);
       router.replace('/(tabs)');
-    }, 1500);
+    } catch (err: any) {
+      setAccountLoading(false);
+      console.error('Sign up error:', err);
+      const code = err?.code as string | undefined;
+      switch (code) {
+        case 'auth/operation-not-allowed':
+          setAccountError('Enable Email/Password in Firebase → Authentication → Sign-in method.');
+          break;
+        case 'auth/email-already-in-use':
+          setAccountError('This email is already in use. Try signing in.');
+          break;
+        case 'auth/invalid-email':
+          setAccountError('Invalid email address.');
+          break;
+        case 'auth/weak-password':
+          setAccountError('Password should be at least 6 characters.');
+          break;
+        default:
+          setAccountError(err?.message || 'Failed to create account');
+      }
+    }
   };
 
   // Check if current input is valid
@@ -534,7 +639,37 @@ const OnboardingScreen = () => {
       return (
         <View style={styles.createAccountContainer}>
           <Text style={styles.createAccountTitle}>Create an account</Text>
-          <TouchableOpacity style={styles.googleButton} onPress={handleGoogleSignIn}>
+          <View style={{ width: '100%', marginBottom: 12 }}>
+            <Text style={{ fontSize: 14, color: theme.gray, marginBottom: 6 }}>Email</Text>
+            <TextInput
+              style={[styles.modalInput, { width: '100%' }]}
+              placeholder="Enter your email"
+              placeholderTextColor={theme.placeholder}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
+          <View style={{ width: '100%', marginBottom: 12 }}>
+            <Text style={{ fontSize: 14, color: theme.gray, marginBottom: 6 }}>Password</Text>
+            <TextInput
+              style={[styles.modalInput, { width: '100%' }]}
+              placeholder="Enter your password"
+              placeholderTextColor={theme.placeholder}
+              autoCapitalize="none"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+          </View>
+          {!!accountError && (
+            <Text style={{ color: theme.error, width: '100%', marginBottom: 8 }}>{accountError}</Text>
+          )}
+          <TouchableOpacity style={styles.finalContinueButton} onPress={handleEmailPasswordSignUp}>
+            <Text style={styles.finalContinueText}>{accountLoading ? 'Creating...' : 'Create account'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.googleButton, { marginTop: 16 }]} onPress={handleGoogleSignIn}>
             <View style={styles.googleButtonContent}>
               <Text style={styles.googleIcon}>G</Text>
               <Text style={styles.googleButtonText}>Sign in with Google</Text>

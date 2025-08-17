@@ -1,5 +1,8 @@
+import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,14 +21,20 @@ export default function SignInScreen() {
 
     setIsLoading(true);
     try {
-      // TODO: Implement actual sign in logic with Firebase
-      // For now, simulate a successful login
-      setTimeout(() => {
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password.trim());
+      const userDoc = await getDoc(doc(db, 'users', cred.user.uid));
+      if (!userDoc.exists()) {
         setIsLoading(false);
-        router.replace('/(tabs)');
-      }, 1000);
+        console.warn('Login succeeded but no user doc found in Firestore for uid:', cred.user.uid);
+        Alert.alert('Please get started', 'No profile found. Create an account first.');
+        return;
+      }
+      setIsLoading(false);
+      console.log('Sign in success for uid:', cred.user.uid);
+      router.replace('/(tabs)');
     } catch (error) {
       setIsLoading(false);
+      console.error('Sign in error:', error);
       Alert.alert('Error', 'Sign in failed. Please try again.');
     }
   };

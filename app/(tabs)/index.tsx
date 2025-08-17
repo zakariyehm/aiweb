@@ -1,11 +1,80 @@
+import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { router } from 'expo-router';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState(5);
   const insets = useSafeAreaInsets();
+  const [plan, setPlan] = useState<null | { calories: number; protein: number; carbs: number; fat: number }>(null);
+  const [loadingPlan, setLoadingPlan] = useState(true);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editCalories, setEditCalories] = useState('');
+  const [editProtein, setEditProtein] = useState('');
+  const [editCarbs, setEditCarbs] = useState('');
+  const [editFat, setEditFat] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        // Redirect to onboarding if signed out
+        try { router.replace('/onboarding/welcome'); } catch {}
+        setPlan(null);
+        return;
+      }
+      const ref = doc(db, 'users', user.uid);
+      const unsubDoc = onSnapshot(ref, (snap) => {
+        const data: any = snap.data() || {};
+        if (data?.plan) {
+          const { calories = 0, protein = 0, carbs = 0, fat = 0 } = data.plan || {};
+          setPlan({ calories, protein, carbs, fat });
+        } else {
+          setPlan(null);
+        }
+        setLoadingPlan(false);
+      }, (err) => {
+        console.error('Firestore plan subscribe error:', err);
+        setLoadingPlan(false);
+      });
+      return () => unsubDoc();
+    });
+    return unsubAuth;
+  }, []);
+
+  const openEdit = () => {
+    if (plan) {
+      setEditCalories(String(plan.calories ?? ''));
+      setEditProtein(String(plan.protein ?? ''));
+      setEditCarbs(String(plan.carbs ?? ''));
+      setEditFat(String(plan.fat ?? ''));
+    }
+    setIsEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    const calories = parseInt(editCalories || '0', 10);
+    const protein = parseInt(editProtein || '0', 10);
+    const carbs = parseInt(editCarbs || '0', 10);
+    const fat = parseInt(editFat || '0', 10);
+    setSaving(true);
+    try {
+      const ref = doc(db, 'users', uid);
+      await setDoc(ref, { plan: { calories, protein, carbs, fat } } as any, { merge: true } as any);
+      console.log('Updated plan', { calories, protein, carbs, fat });
+      setIsEditOpen(false);
+    } catch (e) {
+      console.error('Failed to save edited plan:', e);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const days = [
     { day: 'F', date: '01' },
@@ -61,8 +130,8 @@ export default function HomeScreen() {
 
         <View style={styles.calorieCard}>
           <View style={styles.calorieLeft}>
-            <Text style={styles.calorieNumber}>1896</Text>
-            <Text style={styles.calorieLabel}>Calories left</Text>
+            <Text style={styles.calorieNumber}>{plan?.calories ?? 0}</Text>
+            <Text style={styles.calorieLabel}>{loadingPlan ? 'Loading...' : 'Calories target'}</Text>
           </View>
           <View style={styles.calorieRight}>
             <View style={styles.progressCircle}>
@@ -70,28 +139,31 @@ export default function HomeScreen() {
               <FontAwesome name="fire" size={24} color="#000" style={styles.progressIcon} />
             </View>
           </View>
+          <TouchableOpacity style={styles.editButton} onPress={openEdit} disabled={!plan}>
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.macroContainer}>
           <View style={styles.macroCard}>
-            <Text style={styles.macroNumber}>136g</Text>
-            <Text style={styles.macroLabel}>Protein left</Text>
+            <Text style={styles.macroNumber}>{plan?.protein ?? 0}g</Text>
+            <Text style={styles.macroLabel}>{loadingPlan ? 'Loading...' : 'Protein target'}</Text>
             <View style={[styles.macroIcon, { backgroundColor: '#FF6B6B' }]}>
               <FontAwesome name="bolt" size={16} color="white" />
             </View>
           </View>
           
           <View style={styles.macroCard}>
-            <Text style={styles.macroNumber}>219g</Text>
-            <Text style={styles.macroLabel}>Carbs left</Text>
+            <Text style={styles.macroNumber}>{plan?.carbs ?? 0}g</Text>
+            <Text style={styles.macroLabel}>{loadingPlan ? 'Loading...' : 'Carbs target'}</Text>
             <View style={[styles.macroIcon, { backgroundColor: '#8B4513' }]}>
               <FontAwesome name="leaf" size={16} color="white" />
             </View>
           </View>
           
           <View style={styles.macroCard}>
-            <Text style={styles.macroNumber}>52g</Text>
-            <Text style={styles.macroLabel}>Fats left</Text>
+            <Text style={styles.macroNumber}>{plan?.fat ?? 0}g</Text>
+            <Text style={styles.macroLabel}>{loadingPlan ? 'Loading...' : 'Fats target'}</Text>
             <View style={[styles.macroIcon, { backgroundColor: '#4A90E2' }]}>
               <FontAwesome name="tint" size={16} color="white" />
             </View>
@@ -116,6 +188,38 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+      {/* Edit Modal */}
+      <Modal visible={isEditOpen} transparent animationType="slide" onRequestClose={() => setIsEditOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit daily recommendation</Text>
+            <View style={styles.modalRow}>
+              <Text style={styles.modalLabel}>Calories</Text>
+              <TextInput style={styles.modalInput} keyboardType="numeric" value={editCalories} onChangeText={setEditCalories} />
+            </View>
+            <View style={styles.modalRow}>
+              <Text style={styles.modalLabel}>Protein (g)</Text>
+              <TextInput style={styles.modalInput} keyboardType="numeric" value={editProtein} onChangeText={setEditProtein} />
+            </View>
+            <View style={styles.modalRow}>
+              <Text style={styles.modalLabel}>Carbs (g)</Text>
+              <TextInput style={styles.modalInput} keyboardType="numeric" value={editCarbs} onChangeText={setEditCarbs} />
+            </View>
+            <View style={styles.modalRow}>
+              <Text style={styles.modalLabel}>Fats (g)</Text>
+              <TextInput style={styles.modalInput} keyboardType="numeric" value={editFat} onChangeText={setEditFat} />
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalSecondary} onPress={() => setIsEditOpen(false)}>
+                <Text style={styles.modalSecondaryText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalPrimary} onPress={saveEdit} disabled={saving}>
+                <Text style={styles.modalPrimaryText}>{saving ? 'Saving…' : 'Save'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -206,6 +310,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  editButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  editButtonText: {
+    fontSize: 12,
+    color: '#000',
+    fontWeight: '600',
   },
   calorieLeft: {
     flex: 1,
@@ -342,5 +462,73 @@ const styles = StyleSheet.create({
   },
   arrow: {
     transform: [{ rotate: '45deg' }],
+  },
+  // Modal styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#000',
+    marginBottom: 8,
+  },
+  modalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  modalLabel: {
+    fontSize: 14,
+    color: '#333',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 120,
+    textAlign: 'right',
+    color: '#000',
+  },
+  modalActions: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalSecondary: {
+    borderWidth: 1,
+    borderColor: '#000',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    width: '48%',
+    alignItems: 'center',
+  },
+  modalSecondaryText: {
+    color: '#000',
+    fontWeight: '700',
+  },
+  modalPrimary: {
+    backgroundColor: '#000',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    width: '48%',
+    alignItems: 'center',
+  },
+  modalPrimaryText: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });
