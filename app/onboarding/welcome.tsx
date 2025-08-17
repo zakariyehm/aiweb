@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   button: {
-    backgroundColor: '#E5E5E5',   // Light gray button background
+    backgroundColor: '#6442A4',   // Light gray button background
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   buttonText: {
-    color: '#666666',    // Gray text
+    color: '#fff',    // Gray text
     fontSize: 18,
     fontWeight: 'bold',
     marginRight: 8,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   alreadyHaveAccountText: {
-    color: '#007AFF',    // Blue text for link
+    color: '##2C2540',    // Blue text for link
     fontSize: 16,
     textDecorationLine: 'underline',
   },

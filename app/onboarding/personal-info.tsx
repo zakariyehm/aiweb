@@ -1,20 +1,69 @@
+import DailyRecommendationCard, { Recommendation } from '@/components/DailyRecommendationCard';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
+
+// Simple responsive sizing helpers based on device width
+const isSmallWidth = width < 360;
+const titleFontSize = isSmallWidth ? 24 : width < 400 ? 26 : 28;
+const optionFontSize = isSmallWidth ? 16 : 18;
+const inputFontSize = isSmallWidth ? 40 : width < 400 ? 46 : 52;
+const verticalGapAfterTitle = isSmallWidth ? 16 : 20;
+
+// Map social source to Ionicons names
+const getSourceIconName = (source: string): any => {
+  switch (source) {
+    case 'Instagram':
+      return 'logo-instagram';
+    case 'Facebook':
+      return 'logo-facebook';
+    case 'TikTok':
+      return 'logo-tiktok';
+    case 'YouTube':
+      return 'logo-youtube';
+    default:
+      return undefined;
+  }
+};
+
+// Return emoji for option groups (e.g., diets)
+const getOptionEmoji = (key: string, option: string): string | undefined => {
+  if (key === 'specificGoal') {
+    switch (option) {
+      case 'No specific diet':
+        return '🍽️';
+      case 'Vegetarian':
+        return '🥦';
+      case 'Vegan':
+        return '🌱';
+      case 'Keto':
+        return '🥓';
+      case 'Paleo':
+        return '🍖';
+      case 'Mediterranean':
+        return '🫒';
+      default:
+        return undefined;
+    }
+  }
+  return undefined;
+};
 
 // Color Palette for consistency
 const theme = {
@@ -28,7 +77,7 @@ const theme = {
   lightGray: '#E5E5E5',
   error: '#FF6B6B',
   buttonInactive: '#E5E5E5',
-  buttonActive: '#000000',
+  buttonActive: '#4C367D',
 };
 
 // Validation functions
@@ -129,7 +178,7 @@ const OnboardingScreen = () => {
     { key: 'obstacles', title: 'What\'s stopping you from reaching your goal?', type: 'select', options: ['Lack of time', 'Lack of motivation', 'Unclear plan', 'Financial constraints', 'Health issues'] },
     { key: 'specificGoal', title: 'Do you follow a specific diet?', type: 'select', options: ['No specific diet', 'Vegetarian', 'Vegan', 'Keto', 'Paleo', 'Mediterranean'] },
     { key: 'accomplishments', title: 'What would you like to accomplish?', type: 'select', options: ['Build muscle', 'Improve fitness', 'Better health', 'Confidence boost', 'Athletic performance'] },
-    { key: 'source', title: 'How did you hear about us?', type: 'select', options: ['Instagram', 'Facebook', 'TikTok', 'YouTube', 'Google', 'A Friend'] },
+    { key: 'source', title: 'How did you hear about us?', type: 'select', options: ['Instagram', 'Facebook', 'TikTok', 'YouTube'] },
   ];
 
   // Add calorie calculation functions
@@ -406,6 +455,56 @@ const OnboardingScreen = () => {
     };
   };
   
+  // Build recommendation data for the ring card while loading
+  const getLoadingRecommendations = (): Recommendation[] => {
+    return [
+      { key: 'calories', label: 'Calories', value: 0, unit: '', progress: 0.2, color: theme.black, trackColor: theme.lightGray, icon: <Ionicons name="flame" size={18} color={theme.black} /> },
+      { key: 'carbs', label: 'Carbs', value: 0, unit: 'g', progress: 0.2, color: '#D9822B', trackColor: theme.lightGray, icon: <Ionicons name="leaf" size={18} color="#D9822B" /> },
+      { key: 'protein', label: 'Protein', value: 0, unit: 'g', progress: 0.2, color: '#E35D6A', trackColor: theme.lightGray, icon: <Ionicons name="flash" size={18} color="#E35D6A" /> },
+      { key: 'fat', label: 'Fats', value: 0, unit: 'g', progress: 0.2, color: '#5B8DEF', trackColor: theme.lightGray, icon: <Ionicons name="water" size={18} color="#5B8DEF" /> },
+    ];
+  };
+
+  // Build real recommendations from the generated plan
+  const getPlanRecommendations = (plan: ReturnType<typeof generatePlan>): Recommendation[] => {
+    // Apply user edits if they exist
+    const edits = (onboardingData as any).edits || {};
+    const calories = edits.calories ?? plan.calories;
+    const carbs = edits.carbs ?? plan.carbs;
+    const protein = edits.protein ?? plan.protein;
+    const fat = edits.fat ?? plan.fat;
+    return [
+      { key: 'calories', label: 'Calories', value: calories, unit: '', progress: 0.8, color: theme.black, trackColor: theme.lightGray, icon: <Ionicons name="flame" size={18} color={theme.black} /> },
+      { key: 'carbs', label: 'Carbs', value: carbs, unit: 'g', progress: 0.6, color: '#D9822B', trackColor: theme.lightGray, icon: <Ionicons name="leaf" size={18} color="#D9822B" /> },
+      { key: 'protein', label: 'Protein', value: protein, unit: 'g', progress: 0.6, color: '#E35D6A', trackColor: theme.lightGray, icon: <Ionicons name="flash" size={18} color="#E35D6A" /> },
+      { key: 'fat', label: 'Fats', value: fat, unit: 'g', progress: 0.6, color: '#5B8DEF', trackColor: theme.lightGray, icon: <Ionicons name="water" size={18} color="#5B8DEF" /> },
+    ];
+  };
+
+  // Edit modal state
+  const [editKey, setEditKey] = useState<null | Recommendation['key']>(null);
+  const [editValue, setEditValue] = useState('');
+
+  const onEditRecommendation = (key: Recommendation['key']) => {
+    setEditKey(key);
+    // seed value from existing plan if available
+    if (planGenerated) {
+      const plan = generatePlan();
+      const map: Record<string, number> = { calories: plan.calories, carbs: plan.carbs, protein: plan.protein, fat: plan.fat };
+      setEditValue(String(map[key] ?? 0));
+    } else {
+      setEditValue('0');
+    }
+  };
+
+  const commitEdit = () => {
+    if (!editKey) return;
+    const valueNum = parseInt(editValue || '0');
+    // Store edits in onboardingData under a dedicated namespace
+    setOnboardingData(prev => ({ ...prev, edits: { ...(prev.edits || {}), [editKey]: valueNum } }));
+    setEditKey(null);
+  };
+  
   const renderContent = () => {
     if (loading) {
       return <ActivityIndicator size="large" color={theme.white} />;
@@ -489,28 +588,12 @@ const OnboardingScreen = () => {
             </View>
           </View>
           <Text style={styles.currentOperationText}>{currentOperation}</Text>
-          <View style={styles.dailyRecommendationCard}>
-            <Text style={styles.recommendationTitle}>Daily recommendation for</Text>
-            <View style={styles.recommendationList}>
-              <View style={styles.recommendationItem}>
-                <Text style={styles.recommendationText}>Calories</Text>
-              </View>
-              <View style={styles.recommendationItem}>
-                <Text style={styles.recommendationText}>Carbs</Text>
-                <Text style={styles.checkmark}>✓</Text>
-              </View>
-              <View style={styles.recommendationItem}>
-                <Text style={styles.recommendationText}>Protein</Text>
-              </View>
-              <View style={styles.recommendationItem}>
-                <Text style={styles.recommendationText}>Fats</Text>
-              </View>
-              <View style={styles.recommendationItem}>
-                <Text style={styles.recommendationText}>Health score</Text>
-                <Text style={styles.checkmark}>✓</Text>
-              </View>
-            </View>
-          </View>
+          <DailyRecommendationCard
+            title="Daily recommendation"
+            subtitle="You can edit this any time"
+            items={getLoadingRecommendations()}
+            onEdit={(key) => onEditRecommendation(key)}
+          />
         </View>
       );
     }
@@ -523,24 +606,12 @@ const OnboardingScreen = () => {
           <Text style={styles.subHeader}>
             Your goal: {plan.goal === 'Lose Weight' ? 'Lose' : plan.goal === 'Gain Weight' ? 'Gain' : 'Maintain'} weight
           </Text>
-          <View style={styles.planContainer}>
-            <View style={styles.planBox}>
-              <Text style={styles.planBoxTitle}>Calories</Text>
-              <Text style={styles.planValue}>{plan.calories}</Text>
-            </View>
-            <View style={styles.planBox}>
-              <Text style={styles.planBoxTitle}>Protein</Text>
-              <Text style={styles.planValue}>{plan.protein}g</Text>
-            </View>
-            <View style={styles.planBox}>
-              <Text style={styles.planBoxTitle}>Carbs</Text>
-              <Text style={styles.planValue}>{plan.carbs}g</Text>
-            </View>
-            <View style={styles.planBox}>
-              <Text style={styles.planBoxTitle}>Fat</Text>
-              <Text style={styles.planValue}>{plan.fat}g</Text>
-            </View>
-          </View>
+          <DailyRecommendationCard
+            title="Daily recommendation"
+            subtitle="You can edit this any time"
+            items={getPlanRecommendations(plan)}
+            onEdit={(key) => onEditRecommendation(key)}
+          />
           <View style={styles.detailsContainer}>
             <Text style={styles.detailsText}>BMR: {plan.bmr} kcal/day</Text>
             <Text style={styles.detailsText}>TDEE: {plan.tdee} kcal/day</Text>
@@ -563,15 +634,26 @@ const OnboardingScreen = () => {
                 <View style={styles.optionsContainer}>
                     {currentQuestion.options?.map(opt => {
                         const isSelected = onboardingData[currentQuestion.key] === opt;
+                        const iconName = currentQuestion.key === 'source' ? getSourceIconName(opt) : undefined;
+                        const iconColor = isSelected ? theme.white : theme.black;
+                        const emoji = getOptionEmoji(currentQuestion.key, opt);
                         return (
                             <TouchableOpacity 
                                 key={opt} 
                                 style={[styles.optionButton, isSelected && styles.selectedOptionButton]} 
                                 onPress={() => handleSelectOption(currentQuestion.key, opt)}
                             >
-                                <Text style={[styles.optionText, isSelected && styles.selectedOptionText]}>
-                                    {opt}
-                                </Text>
+                                <View style={styles.optionContent}>
+                                  {iconName && (
+                                    <Ionicons name={iconName as any} size={22} color={iconColor} style={styles.optionIcon} />
+                                  )}
+                                  {!iconName && emoji && (
+                                    <Text style={[styles.optionEmoji, isSelected && styles.selectedOptionText]}>{emoji}</Text>
+                                  )}
+                                  <Text style={[styles.optionText, isSelected && styles.selectedOptionText]}>
+                                      {opt}
+                                  </Text>
+                                </View>
                             </TouchableOpacity>
                         );
                     })}
@@ -628,6 +710,33 @@ const OnboardingScreen = () => {
         </View>
       )}
       {renderContent()}
+      {/* Edit modal */}
+      <Modal visible={!!editKey} transparent animationType="slide" onRequestClose={() => setEditKey(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit {editKey ? editKey.charAt(0).toUpperCase() + editKey.slice(1) : ''} Goal</Text>
+            <View style={{ height: 90, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 26, fontWeight: '700' }}>{editValue}{editKey === 'calories' ? '' : 'g'}</Text>
+            </View>
+            <TextInput
+              style={styles.modalInput}
+              keyboardType="numeric"
+              value={editValue}
+              onChangeText={setEditValue}
+              placeholder="Enter value"
+              placeholderTextColor={theme.placeholder}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalSecondary} onPress={() => setEditKey(null)}>
+                <Text style={styles.modalSecondaryText}>Revert</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalPrimary} onPress={commitEdit}>
+                <Text style={styles.modalPrimaryText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -672,22 +781,23 @@ const styles = StyleSheet.create({
   // ---- Onboarding Screens (Input & Select) ----
   onboardingContent: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingHorizontal: 30,
+    paddingTop: 40,
   },
   questionText: {
     color: theme.black,
-    fontSize: 28,
+    fontSize: titleFontSize,
     fontWeight: '600',
     textAlign: 'center',
-    position: 'absolute',
-    top: '25%',
     width: '100%',
+    lineHeight: titleFontSize * 1.2,
+    marginBottom: verticalGapAfterTitle,
   },
   textInput: {
     color: theme.black,
-    fontSize: 52,
+    fontSize: inputFontSize,
     fontWeight: '400',
     textAlign: 'center',
     borderBottomWidth: 2,
@@ -707,7 +817,7 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     width: '100%',
-    marginTop: 60,
+    marginTop: 0,
   },
   optionButton: {
     width: '100%',
@@ -717,11 +827,23 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     alignItems: 'center',
   },
+  optionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionIcon: {
+    marginRight: 10,
+  },
+  optionEmoji: {
+    marginRight: 8,
+    fontSize: optionFontSize,
+  },
   selectedOptionButton: {
     backgroundColor: theme.black,
   },
   optionText: {
-    fontSize: 18,
+    fontSize: optionFontSize,
     color: theme.black,
     fontWeight: '600',
   },
@@ -813,6 +935,64 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
     fontWeight: '500',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: theme.primary,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: theme.black,
+    marginBottom: 12,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: theme.lightGray,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    fontSize: 18,
+    color: theme.black,
+  },
+  modalActions: {
+    marginTop: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalSecondary: {
+    borderWidth: 1,
+    borderColor: theme.black,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    width: '45%',
+    alignItems: 'center',
+  },
+  modalSecondaryText: {
+    color: theme.black,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  modalPrimary: {
+    backgroundColor: theme.black,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    width: '45%',
+    alignItems: 'center',
+  },
+  modalPrimaryText: {
+    color: theme.white,
+    fontWeight: '700',
+    fontSize: 16,
   },
   finalContinueButton: {
     backgroundColor: theme.white, 
