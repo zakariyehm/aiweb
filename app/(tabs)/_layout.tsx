@@ -19,6 +19,11 @@ export default function TabLayout() {
     try { router.push('/actionDialog/upload'); } catch {}
   };
 
+  const openSaved = () => {
+    setIsActionOpen(false);
+    try { router.push('/actionDialog/saved'); } catch {}
+  };
+
   return (
     <>
     <Tabs
@@ -110,13 +115,28 @@ export default function TabLayout() {
             <View style={styles.actionIcon}>
               <FontAwesome name="camera" size={18} color="#fff" />
             </View>
-            <Text style={styles.actionText}>Scan</Text>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Scan</Text>
+              <Text style={styles.actionDescription}>Use your camera to scan a meal instantly.</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionItem} onPress={openUpload}>
             <View style={styles.actionIcon}>
               <FontAwesome name="upload" size={18} color="#fff" />
             </View>
-            <Text style={styles.actionText}>Upload</Text>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Upload</Text>
+              <Text style={styles.actionDescription}>Choose a photo from gallery for analysis.</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionItem} onPress={openSaved}>
+            <View style={styles.actionIcon}>
+              <FontAwesome name="bookmark" size={18} color="#fff" />
+            </View>
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Food Saved</Text>
+              <Text style={styles.actionDescription}>Quickly access meals you've saved.</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cancelButton} onPress={() => setIsActionOpen(false)}>
             <Text style={styles.cancelText}>Cancel</Text>
@@ -140,6 +160,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 16,
     paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+    minHeight: 260,
   },
   sheetHandle: {
     alignSelf: 'center',
@@ -163,10 +184,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  actionText: {
+  actionTextContainer: {
+    flex: 1,
+  },
+  actionTitle: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  actionDescription: {
+    color: '#B5B5B5',
+    fontSize: 13,
+    marginTop: 2,
   },
   cancelButton: {
     marginTop: 8,
