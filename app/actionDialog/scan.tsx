@@ -1,7 +1,6 @@
-import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Qaybta shaashadda hore (Initial View)
@@ -16,7 +15,7 @@ const InitialView = ({ onContinue }: { onContinue: () => void }) => {
       {/* Offer details */}
       <View style={styles.offerDetails}>
         <View style={styles.checkmarkRow}>
-          <Text style={{color: '#4CAF50', fontWeight: 'bold', fontSize: 18}}>✓</Text>
+          <Text style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: 18 }}>✓</Text>
           <Text style={styles.checkmarkText}>No Payment Due Now</Text>
         </View>
       </View>
@@ -34,8 +33,10 @@ const InitialView = ({ onContinue }: { onContinue: () => void }) => {
   );
 };
 
+type PlanType = 'monthly' | 'yearly';
+
 // Qaybta shaashadda labaad (Trial Offer View)
-const TrialOfferView = ({ selectedPlan, onSelectPlan, onStart }) => {
+const TrialOfferView = ({ selectedPlan, onSelectPlan, onStart }: { selectedPlan: PlanType; onSelectPlan: (p: PlanType) => void; onStart: () => void; }) => {
   return (
     <>
       <Text style={styles.trialTitle}>Start your 3-day FREE trial to continue.</Text>
@@ -102,29 +103,29 @@ const TrialOfferView = ({ selectedPlan, onSelectPlan, onStart }) => {
 
 
 // [CUSUB] Shaashadda yar ee lacag bixinta (Payment Dialog Component)
-const PaymentDialog = ({ visible, onClose, selectedPlan }) => {
+const PaymentDialog = ({ visible, onClose, selectedPlan }: { visible: boolean; onClose: () => void; selectedPlan: PlanType; }) => {
   const [phoneNumber, setPhoneNumber] = useState('252');
 
   const handleSubscription = () => {
     // Hubi in lambarku sax yahay (ugu yaraan 10 xarafood oo leh 252)
     if (phoneNumber.length < 10) {
-      Alert.alert("Error", "Please enter a valid Somali phone number (e.g., 25261xxxxxxx).");
+      Alert.alert('Error', 'Please enter a valid Somali phone number (e.g., 25261xxxxxxx).');
       return;
     }
     console.log(`Subscribing to ${selectedPlan} plan with phone number: ${phoneNumber}`);
     // Halkan ku dar logic-ka dhabta ah ee lacag bixinta
-    Alert.alert("Success", `You have subscribed to the ${selectedPlan} plan!`);
+    Alert.alert('Success', `You have subscribed to the ${selectedPlan} plan!`);
     onClose(); // Xir shaashadda kadib guusha
   };
   
   // Hubi in user-ku uusan masixi karin '252'
-  const handlePhoneChange = (text) => {
+  const handlePhoneChange = (text: string) => {
     if (text.startsWith('252')) {
       setPhoneNumber(text);
     }
   };
 
-  const planDetails = {
+  const planDetails: Record<PlanType, { name: string; price: string }> = {
     monthly: { name: 'Cal AI Monthly Plan', price: '$9.99/month' },
     yearly: { name: 'Cal AI Yearly Plan', price: '$29.99/year' }
   };
@@ -170,7 +171,7 @@ const PaymentDialog = ({ visible, onClose, selectedPlan }) => {
 export default function ScanScreen() {
   const [showTrialDetails, setShowTrialDetails] = useState(false);
   // [CUSUB] State lagu maareeyo doorashada iyo dialog-ga
-  const [selectedPlan, setSelectedPlan] = useState('yearly'); // Default waa yearly
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>('yearly'); // Default waa yearly
   const [isDialogVisible, setDialogVisible] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -183,14 +184,7 @@ export default function ScanScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header-ka guud */}
-      <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <FontAwesome name="arrow-left" size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
-
+    <View style={[styles.container, { paddingTop: insets.top }]}> 
       {/* Qaybta hoose ee isbeddelaysa */}
       <View style={styles.content}>
         {showTrialDetails ? (
@@ -222,13 +216,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingTop: 10,
   },
   backButton: {
-    padding: 8,
   },
   content: {
     flex: 1,
@@ -428,3 +417,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   }
 });
+
+
