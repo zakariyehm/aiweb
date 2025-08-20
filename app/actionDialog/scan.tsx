@@ -1,8 +1,8 @@
 import React from 'react';
-import FeeCheck from '../../components/scan/feeCheck';
+import ScanComponent from '../../components/scan/scanComponent';
 
 export default function ScanScreen() {
-  return <FeeCheck />;
+  return <ScanComponent />;
 }
 
 
