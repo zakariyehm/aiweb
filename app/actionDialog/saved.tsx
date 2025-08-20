@@ -1,3 +1,5 @@
+import { FontAwesome } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,9 +19,20 @@ const mockData: SavedItem[] = [
 export default function SavedScreen() {
   const insets = useSafeAreaInsets();
 
+  const handleClose = () => {
+    router.back();
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}> 
-      <Text style={styles.title}>Food Saved</Text>
+      {/* Header with close button */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Food Saved</Text>
+        <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+          <FontAwesome name="times" size={20} color="#000" />
+        </TouchableOpacity>
+      </View>
+      
       <Text style={styles.subtitle}>Your recently saved meals</Text>
 
       <FlatList
@@ -49,17 +62,82 @@ export default function SavedScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 16 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#000', marginTop: 8 },
-  subtitle: { fontSize: 14, color: '#666', marginTop: 4 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginTop: 12, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
-  cardContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  cardIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EEE' },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#000' },
-  cardSubtitle: { fontSize: 12, color: '#666', marginTop: 2 },
-  emptyContainer: { alignItems: 'center', marginTop: 40 },
-  emptyTitle: { fontSize: 16, fontWeight: 'bold', color: '#000', marginBottom: 8 },
-  emptyDescription: { fontSize: 14, color: '#666' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff', 
+    paddingHorizontal: 16 
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  title: { 
+    fontSize: 28, 
+    fontWeight: 'bold', 
+    color: '#000' 
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  subtitle: { 
+    fontSize: 14, 
+    color: '#666', 
+    marginBottom: 16 
+  },
+  card: { 
+    backgroundColor: '#fff', 
+    borderRadius: 12, 
+    padding: 14, 
+    marginTop: 12, 
+    shadowColor: '#000', 
+    shadowOpacity: 0.08, 
+    shadowRadius: 6, 
+    shadowOffset: { width: 0, height: 2 }, 
+    elevation: 3 
+  },
+  cardContent: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 12 
+  },
+  cardIcon: { 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    backgroundColor: '#EEE' 
+  },
+  cardTitle: { 
+    fontSize: 16, 
+    fontWeight: '700', 
+    color: '#000' 
+  },
+  cardSubtitle: { 
+    fontSize: 12, 
+    color: '#666', 
+    marginTop: 2 
+  },
+  emptyContainer: { 
+    alignItems: 'center', 
+    marginTop: 40 
+  },
+  emptyTitle: { 
+    fontSize: 16, 
+    fontWeight: 'bold', 
+    color: '#000', 
+    marginBottom: 8 
+  },
+  emptyDescription: { 
+    fontSize: 14, 
+    color: '#666' 
+  },
 });
 
 

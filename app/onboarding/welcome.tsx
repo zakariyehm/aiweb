@@ -35,7 +35,7 @@ export default function WelcomeScreen() {
         {/* Get Started Button */}
         <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
           <Text style={styles.buttonText}>Get Started</Text>
-          <FontAwesome name="arrow-right" size={20} color="#000000" />
+          <FontAwesome name="arrow-right" size={20} color="#fff" />
         </TouchableOpacity>
 
         {/* Already have an account text button */}
