@@ -1,92 +1,186 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScanResult } from '@/types/scan';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { FontAwesome } from '@expo/vector-icons';
-
-type ScanResult = {
-  title: string;
-  calories: number;
-  carbsG: number;
-  proteinG: number;
-  fatG: number;
-  healthScore: number;
-  imageUri?: string;
-};
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ScanResultsModal() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const [formattedTime, setFormattedTime] = useState<string>('');
   
-  // Parse the scan result from navigation params
+  // Parse the scan result from navigation params with safe defaults
   const scanResult: ScanResult = {
-    title: params.title as string || "Grilled Chicken Salad",
-    calories: Number(params.calories) || 320,
-    carbsG: Number(params.carbsG) || 15.2,
-    proteinG: Number(params.proteinG) || 28.5,
-    fatG: Number(params.fatG) || 18.3,
-    healthScore: Number(params.healthScore) || 8,
+    title: params.title as string || "Unknown dish",
+    calories: Number(params.calories) || 0,
+    carbsG: Number(params.carbsG) || 0,
+    proteinG: Number(params.proteinG) || 0,
+    fatG: Number(params.fatG) || 0,
+    healthScore: Number(params.healthScore) || 0,
+    // The router already decodes once; the source encoded to preserve the URI.
     imageUri: params.imageUri as string,
   };
 
+  // Runtime guard for missing fields
+  useEffect(() => {
+    const missingFields = [];
+    if (!params.title) missingFields.push('title');
+    if (!params.calories) missingFields.push('calories');
+    if (!params.carbsG) missingFields.push('carbsG');
+    if (!params.proteinG) missingFields.push('proteinG');
+    if (!params.fatG) missingFields.push('fatG');
+    if (!params.healthScore) missingFields.push('healthScore');
+    
+    if (missingFields.length > 0) {
+      console.warn('[ScanResults] Missing fields:', missingFields);
+    }
+  }, [params]);
+
+  // Slide-up animation on mount
+  useEffect(() => {
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [slideAnim]);
+
+  // Set current time once on mount
+  useEffect(() => {
+    try {
+      const now = new Date();
+      const fmt = new Intl.DateTimeFormat(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+      }).format(now);
+      setFormattedTime(fmt);
+    } catch {
+      // Fallback if Intl fails
+      const h = new Date().getHours();
+      const m = new Date().getMinutes();
+      const mm = m < 10 ? `0${m}` : String(m);
+      setFormattedTime(`${h}:${mm}`);
+    }
+  }, []);
+
   const handleClose = () => {
-    router.back();
+    // Go back to camera and reopen it
+    router.replace({ pathname: '/actionDialog/scan', params: { reopen: '1' } });
   };
 
   const handleDone = () => {
     router.replace('/(tabs)');
   };
 
+  const handleFixResults = () => {
+    router.push({
+      pathname: '/actionDialog/fixResults',
+      params: {
+        title: scanResult.title,
+        calories: scanResult.calories.toString(),
+        carbsG: scanResult.carbsG.toString(),
+        proteinG: scanResult.proteinG.toString(),
+        fatG: scanResult.fatG.toString(),
+        healthScore: scanResult.healthScore.toString(),
+        imageUri: scanResult.imageUri || '',
+      }
+    });
+  };
+
   return (
     <View style={styles.container}>
-      {/* Background Image */}
-      {scanResult.imageUri && (
-        <Image source={{ uri: scanResult.imageUri }} style={styles.backgroundImage} resizeMode="cover" />
-      )}
-      
-      {/* Overlay */}
-      <View style={styles.overlay} />
-      
-      {/* Close Button */}
-      <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-        <Ionicons name="close" size={24} color="#fff" />
-      </TouchableOpacity>
+      {/* Top Section - 40% of screen (Image) */}
+      <View style={styles.topSection}>
+        {/* Food Image - Full background */}
+        {scanResult.imageUri ? (
+          <Image source={{ uri: scanResult.imageUri }} style={styles.foodImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.noImagePlaceholder}>
+            <Ionicons name="restaurant" size={64} color="#ccc" />
+            <Text style={styles.noImageText}>No image available</Text>
+          </View>
+        )}
+        
+        {/* Removed overlay to avoid blocking image area */}
+        
+        {/* Close Button - Safe area aware */}
+        <TouchableOpacity 
+          style={[styles.closeButton, { top: insets.top + 20 }]} 
+          onPress={handleClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close scan results"
+        >
+          <Ionicons name="close" size={24} color="#000" />
+        </TouchableOpacity>
+      </View>
 
-      {/* Results Modal */}
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          {/* Title */}
-          <View style={styles.titleChip}>
-            <Text style={styles.titleText} numberOfLines={1}>{scanResult.title}</Text>
+      {/* Bottom Section - 60% of screen (Content) */}
+      <Animated.View 
+        style={[
+          styles.bottomSection,
+          { transform: [{ translateY: slideAnim }] }
+        ]}
+      >
+        <ScrollView 
+          style={styles.contentContainer} 
+          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Title and Timestamp */}
+          <View style={styles.titleSection}>
+            <View style={styles.titleRow}>
+              
+              <Text style={styles.timestamp}>{formattedTime}</Text>
+            </View>
+            <Text style={styles.foodTitle}>{scanResult.title}</Text>
           </View>
 
-          {/* Calories */}
-          <View style={styles.caloriePill}>
-            <Ionicons name="flame" size={18} color="#D92C20" />
-            <Text style={styles.calorieText}>{scanResult.calories} Calories</Text>
-            <Ionicons name="pencil" size={16} color="#111" style={{ marginLeft: 'auto' }} />
+          {/* Calories Card */}
+          <View style={styles.caloriesCard}>
+            <Ionicons name="flame" size={24} color="#000" />
+            <Text style={styles.caloriesLabel}>Calories</Text>
+            <Text style={styles.caloriesValue}>{scanResult.calories}</Text>
           </View>
 
-          {/* Macronutrients */}
-          <View style={styles.macroRow}>
-            <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>{scanResult.carbsG.toFixed(1)}g</Text>
-              <Text style={styles.macroLabel}>carbs</Text>
+          {/* Macronutrients Row */}
+          <View style={styles.macrosRow}>
+            <View style={styles.macroCard}>
+              <View style={styles.macroIconContainer}>
+                <Ionicons name="water" size={20} color="#FF6B9D" />
+              </View>
+              <Text style={styles.macroLabel}>Protein</Text>
+              <Text style={styles.macroValue}>{scanResult.proteinG}g</Text>
             </View>
-            <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>{scanResult.proteinG.toFixed(1)}g</Text>
-              <Text style={styles.macroLabel}>protein</Text>
+
+            <View style={styles.macroCard}>
+              <View style={styles.macroIconContainer}>
+                <Ionicons name="leaf" size={20} color="#FFB366" />
+              </View>
+              <Text style={styles.macroLabel}>Carbs</Text>
+              <Text style={styles.macroValue}>{scanResult.carbsG}g</Text>
             </View>
-            <View style={styles.macroItem}>
-              <Text style={styles.macroValue}>{scanResult.fatG.toFixed(1)}g</Text>
-              <Text style={styles.macroLabel}>fat</Text>
+
+            <View style={styles.macroCard}>
+              <View style={styles.macroIconContainer}>
+                <Ionicons name="water" size={20} color="#66B3FF" />
+              </View>
+              <Text style={styles.macroLabel}>Fats</Text>
+              <Text style={styles.macroValue}>{scanResult.fatG}g</Text>
             </View>
           </View>
 
-          {/* Health Score */}
-          <View style={styles.healthCard}>
-            <Text style={styles.healthLabel}>Health Score ({scanResult.healthScore}/10)</Text>
+          {/* Health Score Card */}
+          <View style={styles.healthScoreCard}>
+            <View style={styles.healthScoreHeader}>
+              <View style={styles.healthIconContainer}>
+                <Ionicons name="heart" size={20} color="#FF6B9D" />
+                <Ionicons name="flash" size={12} color="#FF6B9D" style={styles.flashIcon} />
+              </View>
+              <Text style={styles.healthScoreLabel}>Health Score</Text>
+              <Text style={styles.healthScoreValue}>{scanResult.healthScore}/10</Text>
+            </View>
             <View style={styles.healthBarTrack}>
               <View 
                 style={[
@@ -97,25 +191,29 @@ export default function ScanResultsModal() {
             </View>
           </View>
 
-          {/* Vitamin Data Button */}
-          <TouchableOpacity style={styles.tertiaryButton}>
-            <Ionicons name="document-text-outline" size={16} color="#111827" />
-            <Text style={styles.tertiaryButtonText}>View Vitamin Data</Text>
-          </TouchableOpacity>
-
           {/* Action Buttons */}
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.secondaryButton}>
-              <FontAwesome name="star" size={14} color="#111" />
-              <Text style={styles.secondaryButtonText}>AI Fix</Text>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity 
+              style={styles.fixResultsButton} 
+              onPress={handleFixResults}
+              accessibilityRole="button"
+              accessibilityLabel={`Fix nutrition results for ${scanResult.title}`}
+            >
+              <FontAwesome name="star" size={16} color="#000" />
+              <Text style={styles.fixResultsText}>Fix Results</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.primaryButton} onPress={handleDone}>
-              <Text style={styles.primaryButtonText}>Done</Text>
+            <TouchableOpacity 
+              style={styles.doneButton} 
+              onPress={handleDone}
+              accessibilityRole="button"
+              accessibilityLabel="Return to home screen"
+            >
+              <Text style={styles.doneButtonText}>Done</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </ScrollView>
+      </Animated.View>
     </View>
   );
 }
@@ -123,167 +221,231 @@ export default function ScanResultsModal() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#fff',
   },
-  backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
+  topSection: {
+    height: '40%', // 40% of screen height
+    backgroundColor: '#fff',
+    position: 'relative',
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+  bottomSection: {
+    flex: 1, // Takes remaining 60% of screen
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
   },
   closeButton: {
     position: 'absolute',
-    top: 50,
     right: 20,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
     zIndex: 10,
   },
-  modalContainer: {
+  foodImage: {
+    width: '100%',
+    height: '100%', // Cover the full height of the top section
+  },
+  noImagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+  },
+  noImageText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#888',
+  },
+  imageOverlay: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#111827',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
+    height: 60,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+  },
+  contentContainer: {
+    flex: 1,
     paddingHorizontal: 20,
-    paddingBottom: 40,
-    minHeight: '60%',
+    paddingTop: 20,
   },
-  modalContent: {
-    gap: 16,
+  titleSection: {
+    marginBottom: 24,
   },
-  titleChip: {
-    alignSelf: 'center',
-    backgroundColor: '#0b1020',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 16,
-    maxWidth: '90%',
-  },
-  titleText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  caloriePill: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  timestamp: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+  },
+  foodTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 16,
+  },
+  caloriesCard: {
+    backgroundColor: '#f8f9fa',
     borderRadius: 16,
-    backgroundColor: '#ffd6d6',
-    gap: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  calorieText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111',
+  caloriesLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 6,
+    marginBottom: 2,
   },
-  macroRow: {
+  caloriesValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  macrosRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
-  },
-  macroItem: {
-    flex: 1,
-    backgroundColor: '#1f2937',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    gap: 4,
-  },
-  macroValue: {
-    color: '#f8fafc',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  macroLabel: {
-    color: '#9ca3af',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  healthCard: {
-    backgroundColor: '#1f2937',
-    borderRadius: 12,
-    padding: 16,
+    marginBottom: 24,
     gap: 12,
   },
-  healthLabel: {
-    color: '#e5e7eb',
-    fontWeight: '600',
+  macroCard: {
+    flex: 1,
+    minWidth: 80, // Ensure cards don't get too small
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  macroIconContainer: {
+    marginBottom: 8,
+  },
+  macroLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  macroValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  healthScoreCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  healthScoreHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  healthIconContainer: {
+    position: 'relative',
+  },
+  flashIcon: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+  },
+  healthScoreLabel: {
     fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  healthScoreValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
   },
   healthBarTrack: {
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: '#111827',
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#e9ecef',
     overflow: 'hidden',
   },
   healthBarFill: {
     height: '100%',
-    backgroundColor: '#22c55e',
-    borderRadius: 999,
+    backgroundColor: '#28a745',
+    borderRadius: 4,
   },
-  tertiaryButton: {
-    alignSelf: 'center',
+  actionButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#e5e7eb',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 999,
+    gap: 16,
+    marginBottom: 40,
   },
-  tertiaryButtonText: {
-    color: '#111827',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 8,
-  },
-  secondaryButton: {
+  fixResultsButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
     gap: 8,
-    backgroundColor: '#ffffff',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  secondaryButtonText: {
-    color: '#111',
-    fontWeight: '700',
+  fixResultsText: {
     fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
   },
-  primaryButton: {
+  doneButton: {
     flex: 1,
-    backgroundColor: '#111827',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 999,
+    backgroundColor: '#000',
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  primaryButtonText: {
-    color: '#fff',
-    fontWeight: '700',
+  doneButtonText: {
     fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

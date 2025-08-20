@@ -1,0 +1,60 @@
+import 'dotenv/config';
+
+export default {
+  expo: {
+    name: "ai",
+    slug: "ai",
+    version: "1.0.0",
+    orientation: "portrait",
+    icon: "./assets/images/icon.png",
+    scheme: "ai",
+    userInterfaceStyle: "automatic",
+    newArchEnabled: true,
+    ios: {
+      supportsTablet: true,
+      infoPlist: {
+        NSCameraUsageDescription: "This app needs access to camera to scan food items for nutrition analysis."
+      }
+    },
+    android: {
+      adaptiveIcon: {
+        foregroundImage: "./assets/images/adaptive-icon.png",
+        backgroundColor: "#ffffff"
+      },
+      edgeToEdgeEnabled: true,
+      permissions: [
+        "android.permission.CAMERA"
+      ]
+    },
+    web: {
+      bundler: "metro",
+      output: "static",
+      favicon: "./assets/images/favicon.png"
+    },
+    plugins: [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/images/splash-icon.png",
+          imageWidth: 200,
+          resizeMode: "contain",
+          backgroundColor: "#9246FF"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          photosPermission: "The app accesses your photos to let you share them with your friends."
+        }
+      ]
+    ],
+    experiments: {
+      typedRoutes: true
+    },
+    extra: {
+      googleApiKey: process.env.EXPO_PUBLIC_GOOGLE_API_KEY,
+      usdaApiKey: process.env.EXPO_PUBLIC_USDA_API_KEY,
+    }
+  }
+};

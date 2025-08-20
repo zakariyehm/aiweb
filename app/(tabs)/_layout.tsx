@@ -29,7 +29,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#A78BFA',
+        tabBarActiveTintColor: '#000',
         tabBarInactiveTintColor: '#C9C9CF',
         tabBarLabelStyle: { fontSize: 12, fontWeight: '600', marginBottom: Platform.OS === 'ios' ? 0 : 2 },
         tabBarStyle: Platform.select({
