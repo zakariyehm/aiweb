@@ -1,8 +1,8 @@
 import React from 'react';
-import ScanComponent from '../../components/scan/scanComponent';
+import ScanScreenComponent from '../../components/scan/scanComponent';
 
 export default function ScanScreen() {
-  return <ScanComponent />;
+  return <ScanScreenComponent />;
 }
 
 

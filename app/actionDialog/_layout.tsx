@@ -13,6 +13,15 @@ export default function ActionDialogLayout() {
         }} 
       />
       <Stack.Screen 
+        name="scanResults" 
+        options={{ 
+          title: 'Scan Results',
+          presentation: 'modal',
+          headerShown: false,
+          animation: 'slide_from_bottom'
+        }} 
+      />
+      <Stack.Screen 
         name="upload" 
         options={{ 
           title: 'Upload',

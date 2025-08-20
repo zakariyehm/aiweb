@@ -1,9 +1,11 @@
+import { useAuth } from '@/hooks/useAuth';
 import { router } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Image, StyleSheet, View } from 'react-native';
 
 export default function SplashScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { isLoggedIn } = useAuth();
 
   useEffect(() => {
     // Fade in animation
@@ -13,13 +15,20 @@ export default function SplashScreen() {
       useNativeDriver: true,
     }).start();
 
-    // Navigate to WelcomeScreen after 2 seconds
+    // Navigate based on authentication status after 2 seconds
     const timer = setTimeout(() => {
-      router.replace('/onboarding/welcome');
+      if (isLoggedIn === true) {
+        // User is logged in, go to home
+        router.replace('/(tabs)');
+      } else if (isLoggedIn === false) {
+        // User is not logged in, go to welcome
+        router.replace('/onboarding/welcome');
+      }
+      // If isLoggedIn is null, still loading, wait
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [fadeAnim]);
+  }, [fadeAnim, isLoggedIn]);
 
   return (
     <View style={styles.container}>

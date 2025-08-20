@@ -1,3 +1,4 @@
+import { useAuth } from '@/hooks/useAuth';
 import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -14,6 +15,7 @@ export default function SignInScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [infoMessage, setInfoMessage] = useState('');
   const insets = useSafeAreaInsets();
+  const { login } = useAuth();
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -32,10 +34,20 @@ export default function SignInScreen() {
         setInfoMessage('');
         return;
       }
+      
+      // Save user data and navigate to home
+      await login({
+        uid: cred.user.uid,
+        email: cred.user.email,
+        displayName: userDoc.data()?.displayName || cred.user.displayName,
+      });
+      
       setIsLoading(false);
       setErrorMessage('');
       setInfoMessage('Signed in successfully. Redirecting...');
-      setTimeout(() => router.replace('/(tabs)'), 600);
+      
+      // Navigate to home after successful login
+      setTimeout(() => router.replace('/(tabs)'), 1000);
     } catch (error: any) {
       setIsLoading(false);
       setInfoMessage('');
@@ -80,6 +92,12 @@ export default function SignInScreen() {
     try {
       // TODO: Implement Google sign in logic
       // For now, simulate a successful login
+      await login({
+        uid: 'google-user-123',
+        email: 'user@gmail.com',
+        displayName: 'Google User',
+      });
+      
       setTimeout(() => {
         setIsLoading(false);
         router.replace('/(tabs)');
