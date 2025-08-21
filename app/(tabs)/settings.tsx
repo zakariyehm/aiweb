@@ -35,7 +35,19 @@ export default function SettingsScreen() {
     const ref = doc(db, 'users', user.uid);
     const unsub = onSnapshot(ref, (snap: any) => {
       const data = snap.data() || {};
-      setProfile(data.profile || {});
+      const p = data.profile || {};
+      // Provide hint for username policy
+      if (p.lastUsernameChangeAt) {
+        let lastMs: number | undefined = undefined;
+        const last = p.lastUsernameChangeAt;
+        if (typeof last === 'number') lastMs = last;
+        else if (last && typeof last.toMillis === 'function') lastMs = last.toMillis();
+        if (lastMs) {
+          const nextDate = new Date(lastMs + 365 * 24 * 60 * 60 * 1000);
+          (p as any)._usernameNextChange = nextDate;
+        }
+      }
+      setProfile(p);
     });
     return unsub;
   }, []);
@@ -87,8 +99,8 @@ export default function SettingsScreen() {
         <View style={styles.profileCard}>
           <Image source={{ uri: 'https://via.placeholder.com/60' }} style={styles.profileImage} />
           <View>
-            <Text style={styles.profileName}>{profile.firstName || profile.name || 'Your Name'}</Text>
-            <Text style={styles.profileAge}>{profile.email || 'example@email.com'}</Text>
+            <Text style={styles.profileName}>{profile.name || profile.firstName || 'Your Name'}</Text>
+            <Text style={styles.profileAge}>{profile.email || auth.currentUser?.email || 'example@email.com'}</Text>
           </View>
         </View>
 
@@ -96,20 +108,35 @@ export default function SettingsScreen() {
         <View style={styles.listSection}>
           <Text style={styles.sectionBadge}>MY ACCOUNT</Text>
           {[
-            { label: 'Name', value: profile.firstName || profile.name || '', key: 'name' },
+            { label: 'Name', value: profile.name || profile.firstName || '', key: 'name' },
             { label: 'Username', value: profile.username || '', key: 'username' },
             { label: 'Age', value: profile.age ? String(profile.age) : '—', key: 'age' },
             { label: 'Mobile Number', value: profile.phone || '—', key: 'phone' },
-            { label: 'Email', value: profile.email || '', key: 'email' },
+            { label: 'Email', value: profile.email || auth.currentUser?.email || '', key: 'email' },
             { label: 'Password', value: '', key: 'password' },
             { label: 'Gender', value: profile.gender || '—', key: 'gender' },
           ].map((row, idx) => (
-            <TouchableOpacity key={row.label + idx} style={styles.row} onPress={() => {}}>
+            <TouchableOpacity
+              key={row.label + idx}
+              style={styles.row}
+              onPress={() =>
+                router.push({
+                  pathname: '/profileDialog/editField',
+                  params: { field: row.key, label: row.label, value: row.value || '' },
+                })
+              }
+            >
               <View style={styles.rowLeft}>
                 <Text style={styles.rowLabel}>{row.label}</Text>
               </View>
               <View style={styles.rowRight}>
-                {row.value ? <Text style={styles.rowValue}>{row.value}</Text> : null}
+                {row.value ? (
+                  <Text style={styles.rowValue}>
+                    {row.key === 'username' && profile._usernameNextChange
+                      ? `${row.value}`
+                      : row.value}
+                  </Text>
+                ) : null}
                 <FontAwesome name="chevron-right" size={16} color="#bbb" />
               </View>
             </TouchableOpacity>
