@@ -1,3 +1,4 @@
+import useDailyProgress from '@/hooks/useDailyProgress';
 import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -6,9 +7,10 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import CardComponent from '../../components/homeComponents/cardComponent';
 
 export default function HomeScreen() {
-  const [selectedDate, setSelectedDate] = useState(5);
+  const [selectedTab, setSelectedTab] = useState<'today' | 'yesterday'>('today');
   const insets = useSafeAreaInsets();
   const [plan, setPlan] = useState<null | { calories: number; protein: number; carbs: number; fat: number }>(null);
   const [loadingPlan, setLoadingPlan] = useState(true);
@@ -75,19 +77,14 @@ export default function HomeScreen() {
     }
   };
 
-  const days = [
-    { day: 'F', date: '01' },
-    { day: 'S', date: '02' },
-    { day: 'S', date: '03' },
-    { day: 'M', date: '04' },
-    { day: 'T', date: '05' },
-    { day: 'W', date: '06' },
-    { day: 'T', date: '07' },
-  ];
+  // Removed day selector pills (F S S M T W T)
+
+  const uid = auth.currentUser?.uid;
+  const { totals, percents } = useDailyProgress(uid, plan);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header - now outside ScrollView so it doesn't scroll */}
+      {/* Header and tabs */}
       <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
         <View style={styles.headerLeft}>
           <FontAwesome name="apple" size={24} color="#000" />
@@ -98,75 +95,31 @@ export default function HomeScreen() {
           <Text style={styles.streakText}>0</Text>
         </View>
       </View>
+      <View style={styles.tabsRow}>
+        <TouchableOpacity onPress={() => setSelectedTab('today')}>
+          <Text style={[styles.tabLabel, selectedTab === 'today' && styles.tabLabelActive]}>Today</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setSelectedTab('yesterday')}>
+          <Text style={[styles.tabLabel, selectedTab === 'yesterday' && styles.tabLabelActive]}>Yesterday</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* ScrollView - now only contains the scrollable content */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.dateSelector}>
-          {days.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.dateCircle,
-                selectedDate === index && styles.selectedDateCircle
-              ]}
-              onPress={() => setSelectedDate(index)}
-            >
-              <Text style={[
-                styles.dayText,
-                selectedDate === index && styles.selectedDayText
-              ]}>
-                {item.day}
-              </Text>
-              <Text style={[
-                styles.dateText,
-                selectedDate === index && styles.selectedDateText
-              ]}>
-                {item.date}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
 
-        <View style={styles.calorieCard}>
-          <View style={styles.calorieLeft}>
-            <Text style={styles.calorieNumber}>{plan?.calories ?? 0}</Text>
-            <Text style={styles.calorieLabel}>{loadingPlan ? 'Loading...' : 'Calories target'}</Text>
-          </View>
-          <View style={styles.calorieRight}>
-            <View style={styles.progressCircle}>
-              <View style={styles.progressArc} />
-              <FontAwesome name="fire" size={24} color="#000" style={styles.progressIcon} />
-            </View>
-          </View>
+        <View style={styles.cardWrapper}>
+          <CardComponent
+            caloriesLeft={Math.max(0, (plan?.calories ?? 0) - (totals.calories ?? 0))}
+            caloriesProgress={percents.calories}
+            macros={[
+              { valueText: `${plan?.protein ?? 0}g`, helper: 'Protein target', progress: percents.protein, color: '#FF6B6B', icon: 'flash' },
+              { valueText: `${plan?.carbs ?? 0}g`, helper: 'Carbs target', progress: percents.carbs, color: '#8B4513', icon: 'leaf' },
+              { valueText: `${plan?.fat ?? 0}g`, helper: 'Fats target', progress: percents.fat, color: '#4A90E2', icon: 'water' },
+            ]}
+          />
           <TouchableOpacity style={styles.editButton} onPress={openEdit} disabled={!plan}>
             <Text style={styles.editButtonText}>Edit</Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.macroContainer}>
-          <View style={styles.macroCard}>
-            <Text style={styles.macroNumber}>{plan?.protein ?? 0}g</Text>
-            <Text style={styles.macroLabel}>{loadingPlan ? 'Loading...' : 'Protein target'}</Text>
-            <View style={[styles.macroIcon, { backgroundColor: '#FF6B6B' }]}>
-              <FontAwesome name="bolt" size={16} color="white" />
-            </View>
-          </View>
-          
-          <View style={styles.macroCard}>
-            <Text style={styles.macroNumber}>{plan?.carbs ?? 0}g</Text>
-            <Text style={styles.macroLabel}>{loadingPlan ? 'Loading...' : 'Carbs target'}</Text>
-            <View style={[styles.macroIcon, { backgroundColor: '#8B4513' }]}>
-              <FontAwesome name="leaf" size={16} color="white" />
-            </View>
-          </View>
-          
-          <View style={styles.macroCard}>
-            <Text style={styles.macroNumber}>{plan?.fat ?? 0}g</Text>
-            <Text style={styles.macroLabel}>{loadingPlan ? 'Loading...' : 'Fats target'}</Text>
-            <View style={[styles.macroIcon, { backgroundColor: '#4A90E2' }]}>
-              <FontAwesome name="tint" size={16} color="white" />
-            </View>
-          </View>
         </View>
 
         <View style={styles.paginationDots}>
@@ -253,63 +206,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+  },
+  tabLabel: {
+    fontSize: 18,
+    color: '#8A8A8A',
+    fontWeight: '600',
+  },
+  tabLabelActive: {
+    color: '#000',
+  },
   streakText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#000',
   },
-  dateSelector: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  dateCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  selectedDateCircle: {
-    backgroundColor: '#333',
-    borderColor: '#333',
-  },
-  dayText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  selectedDayText: {
-    color: '#fff',
-  },
-  dateText: {
-    fontSize: 10,
-    color: '#666',
-  },
-  selectedDateText: {
-    color: '#fff',
-  },
-  calorieCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 20,
-    borderRadius: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
+  // removed date selector styles
+  // calorieCard removed in favor of CardComponent
   editButton: {
     position: 'absolute',
     top: 10,
@@ -411,6 +328,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginBottom: 20,
+  },
+  cardWrapper: {
+    marginHorizontal: 20,
+    marginBottom: 12,
   },
   dot: {
     width: 6,
