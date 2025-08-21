@@ -27,10 +27,30 @@ export default function EditFieldModal() {
   const debounceRef = useRef<any>(null);
   const [currentPassword, setCurrentPassword] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
+  // Phone state
+  const [phoneCountryCode, setPhoneCountryCode] = useState<string>('+1');
+  const [phoneNational, setPhoneNational] = useState<string>('');
 
   useEffect(() => {
     nav.setOptions({ title: label || 'Edit' });
   }, [label, nav]);
+
+  // Initialize phone fields if editing phone
+  useEffect(() => {
+    if (field !== 'phone') return;
+    const raw = String(initialValue || value || '').replace(/\s|-/g, '');
+    if (raw.startsWith('+')) {
+      const m = raw.match(/^(\+\d{1,4})(\d{4,})$/);
+      if (m) {
+        setPhoneCountryCode(m[1]);
+        setPhoneNational(m[2]);
+      } else {
+        setPhoneNational(raw.replace(/^\+/, ''));
+      }
+    } else if (raw) {
+      setPhoneNational(raw);
+    }
+  }, [field]);
 
   // Load current profile policy for username screen (hint + cooldown)
   useEffect(() => {
@@ -212,6 +232,19 @@ export default function EditFieldModal() {
         router.replace('/(tabs)/settings');
         return;
       }
+      if (field === 'phone') {
+        const code = phoneCountryCode.startsWith('+') ? phoneCountryCode : `+${phoneCountryCode}`;
+        const digits = String(phoneNational).replace(/\D/g, '');
+        const e164 = `${code}${digits}`;
+        const valid = /^\+[1-9]\d{7,14}$/.test(e164);
+        if (!valid) throw new Error('Enter a valid phone with country code.');
+        (profile as any).phone = e164;
+        (profile as any).phoneCountryCode = code;
+        (profile as any).phoneNational = digits;
+        await setDoc(ref, { profile }, { merge: true });
+        router.replace('/(tabs)/settings');
+        return;
+      }
       profile[field] = coerced;
       await setDoc(ref, { profile }, { merge: true });
       router.replace('/(tabs)/settings');
@@ -280,16 +313,39 @@ export default function EditFieldModal() {
         ) : (
           <>
             <Text style={styles.fieldLabel}>{label}</Text>
-            <TextInput
-              value={value}
-              onChangeText={setValue}
-              placeholder={`Enter ${label.toLowerCase()}`}
-              style={[styles.inputBase, inputStyle]}
-              autoCapitalize={field === 'email' || field === 'username' ? 'none' : 'words'}
-              keyboardType={keyboardType as any}
-              secureTextEntry={field === 'password'}
-              editable={!saving}
-            />
+            {field === 'phone' ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TextInput
+                  value={phoneCountryCode}
+                  onChangeText={setPhoneCountryCode}
+                  placeholder="+1"
+                  style={[styles.inputBase, styles.pillInput, { width: 90, marginRight: 8 }]}
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  editable={!saving}
+                />
+                <TextInput
+                  value={phoneNational}
+                  onChangeText={setPhoneNational}
+                  placeholder="5551234567"
+                  style={[styles.inputBase, styles.pillInput, { flex: 1 }]}
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  editable={!saving}
+                />
+              </View>
+            ) : (
+              <TextInput
+                value={value}
+                onChangeText={setValue}
+                placeholder={`Enter ${label.toLowerCase()}`}
+                style={[styles.inputBase, inputStyle]}
+                autoCapitalize={field === 'email' || field === 'username' ? 'none' : 'words'}
+                keyboardType={keyboardType as any}
+                secureTextEntry={field === 'password'}
+                editable={!saving}
+              />
+            )}
           </>
         )}
 
@@ -380,5 +436,4 @@ const styles = StyleSheet.create({
   },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });
-
 

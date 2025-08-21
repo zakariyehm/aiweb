@@ -1,18 +1,17 @@
 import { Stack } from 'expo-router';
 
-export default function ProfileDialogLayout() {
+export default function EditLayout() {
   return (
     <Stack
       screenOptions={{
         presentation: 'card',
-        headerShown: true,
-        gestureEnabled: true,
+        headerShown: false,
+        gestureEnabled: false,
       }}
     >
       <Stack.Screen name="editField" options={{ title: 'Edit' }} />
     </Stack>
   );
 }
-
 
 

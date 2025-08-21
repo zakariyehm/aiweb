@@ -121,7 +121,7 @@ export default function SettingsScreen() {
               style={styles.row}
               onPress={() =>
                 router.push({
-                  pathname: '/profileDialog/editField',
+                  pathname: '/edit/editField',
                   params: { field: row.key, label: row.label, value: row.value || '' },
                 })
               }

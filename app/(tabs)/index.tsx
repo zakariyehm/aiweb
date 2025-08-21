@@ -1,4 +1,6 @@
+import CardComponent from '@/components/homeComponents/cardComponent';
 import useDailyProgress from '@/hooks/useDailyProgress';
+import useStreak from '@/hooks/useStreak';
 import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -7,7 +9,6 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import CardComponent from '../../components/homeComponents/cardComponent';
 
 export default function HomeScreen() {
   const [selectedTab, setSelectedTab] = useState<'today' | 'yesterday'>('today');
@@ -81,6 +82,7 @@ export default function HomeScreen() {
 
   const uid = auth.currentUser?.uid;
   const { totals, percents } = useDailyProgress(uid, plan);
+  const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(uid);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -91,8 +93,13 @@ export default function HomeScreen() {
           <Text style={styles.appName}>Cal AI</Text>
         </View>
         <View style={styles.headerRight}>
-          <FontAwesome name="fire" size={20} color="#FF6B35" />
-          <Text style={styles.streakText}>0</Text>
+          <View style={[
+            styles.streakPill,
+            streakBroken ? { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' } : streakAtRisk ? { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' } : null,
+          ]}>
+            <Text style={styles.streakFire}>🔥</Text>
+            <Text style={[styles.streakNum, streakBroken ? { color: '#B91C1C' } : streakAtRisk ? { color: '#B45309' } : null]}>{streakCount}</Text>
+          </View>
         </View>
       </View>
       <View style={styles.tabsRow}>
@@ -205,6 +212,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  streakPill: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  streakFire: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  streakNum: {
+    color: '#111',
+    fontWeight: '700',
+    fontSize: 14,
   },
   tabsRow: {
     flexDirection: 'row',

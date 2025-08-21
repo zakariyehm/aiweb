@@ -1,3 +1,5 @@
+import useStreak from '@/hooks/useStreak';
+import { auth } from '@/lib/firebase';
 import { ScanResult } from '@/types/scan';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -8,6 +10,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function ScanResultsModal() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  const uid = auth.currentUser?.uid || undefined;
+  const { markDone } = useStreak(uid);
   const slideAnim = useRef(new Animated.Value(50)).current;
   const [formattedTime, setFormattedTime] = useState<string>('');
   
@@ -70,7 +74,8 @@ export default function ScanResultsModal() {
     router.replace({ pathname: '/actionDialog/scan', params: { reopen: '1' } });
   };
 
-  const handleDone = () => {
+  const handleDone = async () => {
+    try { await markDone(); } catch {}
     router.replace('/(tabs)');
   };
 
