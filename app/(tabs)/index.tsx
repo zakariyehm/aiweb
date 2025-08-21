@@ -1,5 +1,5 @@
 import CardComponent from '@/components/homeComponents/cardComponent';
-import useDailyProgress from '@/hooks/useDailyProgress';
+import useDailyNutrition from '@/hooks/useDailyNutrition';
 import useStreak from '@/hooks/useStreak';
 import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
@@ -7,20 +7,20 @@ import { router } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const [selectedTab, setSelectedTab] = useState<'today' | 'yesterday'>('today');
   const insets = useSafeAreaInsets();
   const [plan, setPlan] = useState<null | { calories: number; protein: number; carbs: number; fat: number }>(null);
-  const [loadingPlan, setLoadingPlan] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editCalories, setEditCalories] = useState('');
   const [editProtein, setEditProtein] = useState('');
   const [editCarbs, setEditCarbs] = useState('');
   const [editFat, setEditFat] = useState('');
   const [saving, setSaving] = useState(false);
+
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
@@ -39,11 +39,10 @@ export default function HomeScreen() {
         } else {
           setPlan(null);
         }
-        setLoadingPlan(false);
-      }, () => {
-        setLoadingPlan(false);
       });
-      return () => unsubDoc();
+      return () => {
+        unsubDoc();
+      };
     });
     return unsubAuth;
   }, []);
@@ -81,7 +80,10 @@ export default function HomeScreen() {
   // Removed day selector pills (F S S M T W T)
 
   const uid = auth.currentUser?.uid;
-  const { totals, percents } = useDailyProgress(uid, plan);
+  const { 
+    recentlyEaten, 
+    dailyTotals
+  } = useDailyNutrition(uid);
   const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(uid);
 
   return (
@@ -116,12 +118,12 @@ export default function HomeScreen() {
 
         <View style={styles.cardWrapper}>
           <CardComponent
-            caloriesLeft={Math.max(0, (plan?.calories ?? 0) - (totals.calories ?? 0))}
-            caloriesProgress={percents.calories}
+            caloriesLeft={Math.max(0, (plan?.calories ?? 0) - (dailyTotals.calories ?? 0))}
+            caloriesProgress={plan ? Math.min(1, Math.max(0, dailyTotals.calories / plan.calories)) : 0}
             macros={[
-              { valueText: `${plan?.protein ?? 0}g`, helper: 'Protein target', progress: percents.protein, color: '#FF6B6B', icon: 'flash' },
-              { valueText: `${plan?.carbs ?? 0}g`, helper: 'Carbs target', progress: percents.carbs, color: '#8B4513', icon: 'leaf' },
-              { valueText: `${plan?.fat ?? 0}g`, helper: 'Fats target', progress: percents.fat, color: '#4A90E2', icon: 'water' },
+              { valueText: `${dailyTotals.protein}g / ${plan?.protein ?? 0}g`, helper: 'Protein', progress: plan ? Math.min(1, Math.max(0, dailyTotals.protein / plan.protein)) : 0, color: '#FF6B6B', icon: 'flash' },
+              { valueText: `${dailyTotals.carbs}g / ${plan?.carbs ?? 0}g`, helper: 'Carbs', progress: plan ? Math.min(1, Math.max(0, dailyTotals.carbs / plan.carbs)) : 0, color: '#8B4513', icon: 'leaf' },
+              { valueText: `${dailyTotals.fat}g / ${plan?.fat ?? 0}g`, helper: 'Fats', progress: plan ? Math.min(1, Math.max(0, dailyTotals.fat / plan.fat)) : 0, color: '#4A90E2', icon: 'water' },
             ]}
           />
           <TouchableOpacity style={styles.editButton} onPress={openEdit} disabled={!plan}>
@@ -134,17 +136,49 @@ export default function HomeScreen() {
           <View style={styles.dot} />
         </View>
 
+
+
         <View style={styles.recentlyEatenSection}>
           <Text style={styles.sectionTitle}>Recently eaten</Text>
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>You haven't uploaded any food</Text>
-            <Text style={styles.emptyDescription}>
-              Start tracking today's meals by taking a quick pictures
-            </Text>
-            <View style={styles.arrowContainer}>
-              <FontAwesome name="arrow-down" size={24} color="#666" style={styles.arrow} />
+          {recentlyEaten.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>You haven&apos;t eaten anything today</Text>
+              <Text style={styles.emptyDescription}>
+                Start tracking today&apos;s meals by taking a quick picture
+              </Text>
+              <View style={styles.arrowContainer}>
+                <FontAwesome name="arrow-down" size={24} color="#666" style={styles.arrow} />
+              </View>
             </View>
-          </View>
+          ) : (
+            recentlyEaten.map((m) => (
+              <View key={m.id} style={styles.mealCard}>
+                {m.imageUri ? (
+                  <View style={styles.mealImageWrap}>
+                    <Image source={{ uri: m.imageUri }} style={styles.mealImage} />
+                  </View>
+                ) : (
+                  <View style={[styles.mealImageWrap, { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }]}>
+                    <FontAwesome name="cutlery" size={18} color="#9CA3AF" />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mealTitle} numberOfLines={1}>{m.title || 'Meal'}</Text>
+                  <View style={styles.mealRow}><FontAwesome name="fire" size={14} color="#111" /><Text style={styles.mealCal}> {m.calories} kcal</Text></View>
+                  <View style={styles.mealMacrosRow}>
+                    <Text style={[styles.mealMacro, { color: '#EF4444' }]}>⚡ {m.proteinG}g</Text>
+                    <Text style={[styles.mealMacro, { color: '#D97706' }]}>🌾 {m.carbsG}g</Text>
+                    <Text style={[styles.mealMacro, { color: '#2563EB' }]}>💧 {m.fatG}g</Text>
+                  </View>
+                </View>
+                <View style={styles.mealTimePill}>
+                  <Text style={styles.mealTimeText}>
+                    {new Date(m.createdAt?.toDate?.() || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
       {/* Edit Modal */}
@@ -366,6 +400,39 @@ const styles = StyleSheet.create({
     backgroundColor: '#333',
     marginHorizontal: 3,
   },
+  dailyTotalsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  totalsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20,
+  },
+  totalCard: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  totalValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 4,
+  },
+  totalLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
   recentlyEatenSection: {
     paddingHorizontal: 20,
     marginBottom: 100, // Space for FAB
@@ -403,6 +470,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  mealCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mealImageWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  mealImage: { width: '100%', height: '100%' },
+  mealTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
+  mealRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  mealCal: { color: '#111', fontSize: 14 },
+  mealMacrosRow: { flexDirection: 'row', gap: 16, marginTop: 6 },
+  mealMacro: { fontSize: 13, fontWeight: '600' },
+  mealTimePill: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginLeft: 10,
+  },
+  mealTimeText: { color: '#111', fontSize: 12, fontWeight: '600' },
   arrowContainer: {
     marginTop: 15,
   },

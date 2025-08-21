@@ -1,3 +1,4 @@
+import useDailyNutrition from '@/hooks/useDailyNutrition';
 import useStreak from '@/hooks/useStreak';
 import { auth } from '@/lib/firebase';
 import { ScanResult } from '@/types/scan';
@@ -12,6 +13,7 @@ export default function ScanResultsModal() {
   const params = useLocalSearchParams();
   const uid = auth.currentUser?.uid || undefined;
   const { markDone } = useStreak(uid);
+  const { addFoodEntry } = useDailyNutrition(uid);
   const slideAnim = useRef(new Animated.Value(50)).current;
   const [formattedTime, setFormattedTime] = useState<string>('');
   
@@ -75,7 +77,20 @@ export default function ScanResultsModal() {
   };
 
   const handleDone = async () => {
-    try { await markDone(); } catch {}
+    try {
+      // Add food entry to daily nutrition tracking
+      if (uid) {
+        await addFoodEntry({
+          title: scanResult.title,
+          calories: scanResult.calories,
+          proteinG: scanResult.proteinG,
+          carbsG: scanResult.carbsG,
+          fatG: scanResult.fatG,
+          imageUri: scanResult.imageUri || null,
+        });
+      }
+      await markDone();
+    } catch {}
     router.replace('/(tabs)');
   };
 

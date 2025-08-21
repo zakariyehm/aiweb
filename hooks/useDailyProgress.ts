@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { doc, increment, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, orderBy, query, setDoc, where } from 'firebase/firestore';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export type DailyPlan = { calories: number; protein: number; carbs: number; fat: number };
@@ -35,20 +35,36 @@ export function useDailyProgress(userId: string | undefined, plan: DailyPlan | n
   useEffect(() => {
     if (!userId) return;
 
-    const ref = doc(db, 'users', userId, 'daily', dateKey);
-    const unsub = onSnapshot(ref, async (snap) => {
-      if (!snap.exists()) {
-        await setDoc(ref, { calories: 0, protein: 0, carbs: 0, fat: 0, dateKey }, { merge: true });
-        setTotals({ calories: 0, protein: 0, carbs: 0, fat: 0 });
-      } else {
-        const data = snap.data() as any;
-        setTotals({
-          calories: data?.calories ?? 0,
-          protein: data?.protein ?? 0,
-          carbs: data?.carbs ?? 0,
-          fat: data?.fat ?? 0,
-        });
-      }
+    // Query meals for today only
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    const mealsQuery = query(
+      collection(db, 'users', userId, 'meals'),
+      where('createdAt', '>=', todayStart),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsub = onSnapshot(mealsQuery, async (snap) => {
+      let dailyTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      
+      snap.forEach((doc) => {
+        const meal = doc.data();
+        dailyTotals.calories += meal.calories || 0;
+        dailyTotals.protein += meal.proteinG || 0;
+        dailyTotals.carbs += meal.carbsG || 0;
+        dailyTotals.fat += meal.fatG || 0;
+      });
+      
+      // Store the calculated totals in the daily document for persistence
+      const dailyRef = doc(db, 'users', userId, 'daily', dateKey);
+      await setDoc(dailyRef, { 
+        ...dailyTotals, 
+        dateKey,
+        lastUpdated: new Date()
+      }, { merge: true });
+      
+      setTotals(dailyTotals);
     });
 
     const timer = setTimeout(() => setDateKey(getLocalDateKey()), msUntilNextLocalMidnight());
@@ -62,14 +78,23 @@ export function useDailyProgress(userId: string | undefined, plan: DailyPlan | n
     if (!userId) return;
     const todayKey = getLocalDateKey();
     const ref = doc(db, 'users', userId, 'daily', todayKey);
-    // Ensure document exists first
-    await setDoc(ref, { calories: 0, protein: 0, carbs: 0, fat: 0, dateKey: todayKey }, { merge: true });
-    await updateDoc(ref, {
-      calories: increment(delta.calories ?? 0),
-      protein: increment(delta.protein ?? 0),
-      carbs: increment(delta.carbs ?? 0),
-      fat: increment(delta.fat ?? 0),
-    });
+    
+    // Get current totals and add the new intake
+    const currentData = (await getDoc(ref)).data() || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    const newTotals = {
+      calories: (currentData.calories || 0) + (delta.calories || 0),
+      protein: (currentData.protein || 0) + (delta.protein || 0),
+      carbs: (currentData.carbs || 0) + (delta.carbs || 0),
+      fat: (currentData.fat || 0) + (delta.fat || 0),
+    };
+    
+    await setDoc(ref, { 
+      ...newTotals, 
+      dateKey: todayKey,
+      lastUpdated: new Date()
+    }, { merge: true });
+    
+    setTotals(newTotals);
   }, [userId]);
 
   const percents = useMemo(() => {
