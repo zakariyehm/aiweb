@@ -107,13 +107,13 @@ export default function TabLayout() {
       />
     </Tabs>
 
-    <Modal visible={isActionOpen} transparent animationType="fade" onRequestClose={() => setIsActionOpen(false)}>
+    <Modal visible={isActionOpen} transparent animationType="none" onRequestClose={() => setIsActionOpen(false)}>
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
           <View style={styles.sheetHandle} />
           <TouchableOpacity style={styles.actionItem} onPress={openScan}>
             <View style={styles.actionIcon}>
-              <FontAwesome name="camera" size={18} color="#fff" />
+              <FontAwesome name="camera" size={18} color="#111" />
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={styles.actionTitle}>Scan</Text>
@@ -122,7 +122,7 @@ export default function TabLayout() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionItem} onPress={openUpload}>
             <View style={styles.actionIcon}>
-              <FontAwesome name="upload" size={18} color="#fff" />
+              <FontAwesome name="upload" size={18} color="#111" />
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={styles.actionTitle}>Upload</Text>
@@ -131,7 +131,7 @@ export default function TabLayout() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionItem} onPress={openSaved}>
             <View style={styles.actionIcon}>
-              <FontAwesome name="bookmark" size={18} color="#fff" />
+              <FontAwesome name="bookmark" size={18} color="#111" />
             </View>
             <View style={styles.actionTextContainer}>
               <Text style={styles.actionTitle}>Food Saved</Text>
@@ -151,11 +151,11 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#3A3A3A',
+    backgroundColor: '#E5E7EB',
     marginBottom: 12,
   },
   actionItem: {
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#2E2E2E',
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -188,24 +188,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionTitle: {
-    color: '#fff',
+    color: '#111',
     fontSize: 16,
     fontWeight: '700',
   },
   actionDescription: {
-    color: '#B5B5B5',
+    color: '#6B7280',
     fontSize: 13,
     marginTop: 2,
   },
   cancelButton: {
     marginTop: 8,
-    backgroundColor: '#2E2E2E',
+    backgroundColor: '#F3F4F6',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
   },
   cancelText: {
-    color: '#fff',
+    color: '#111',
     fontSize: 16,
     fontWeight: '700',
   },
