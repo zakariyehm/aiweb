@@ -17,6 +17,14 @@ export default function ScanResultsModal() {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const [formattedTime, setFormattedTime] = useState<string>('');
   
+  // Helper function to format nutritional values to one decimal place maximum
+  const formatNutritionValue = (value: number): string => {
+    if (value === 0) return '0g';
+    // Round to 1 decimal place and remove trailing .0 if it's a whole number
+    const rounded = Math.round(value * 10) / 10;
+    return rounded % 1 === 0 ? `${rounded}g` : `${rounded}g`;
+  };
+
   // Parse the scan result from navigation params with safe defaults
   const scanResult: ScanResult = {
     title: params.title as string || "Unknown dish",
@@ -161,7 +169,7 @@ export default function ScanResultsModal() {
           <View style={styles.caloriesCard}>
             <Ionicons name="flame" size={24} color="#000" />
             <Text style={styles.caloriesLabel}>Calories</Text>
-            <Text style={styles.caloriesValue}>{scanResult.calories}</Text>
+            <Text style={styles.caloriesValue}>{Math.round(scanResult.calories)}</Text>
           </View>
 
           {/* Macronutrients Row */}
@@ -171,7 +179,7 @@ export default function ScanResultsModal() {
                 <Ionicons name="water" size={20} color="#FF6B9D" />
               </View>
               <Text style={styles.macroLabel}>Protein</Text>
-              <Text style={styles.macroValue}>{scanResult.proteinG}g</Text>
+              <Text style={styles.macroValue}>{formatNutritionValue(scanResult.proteinG)}</Text>
             </View>
 
             <View style={styles.macroCard}>
@@ -179,7 +187,7 @@ export default function ScanResultsModal() {
                 <Ionicons name="leaf" size={20} color="#FFB366" />
               </View>
               <Text style={styles.macroLabel}>Carbs</Text>
-              <Text style={styles.macroValue}>{scanResult.carbsG}g</Text>
+              <Text style={styles.macroValue}>{formatNutritionValue(scanResult.carbsG)}</Text>
             </View>
 
             <View style={styles.macroCard}>
@@ -187,7 +195,7 @@ export default function ScanResultsModal() {
                 <Ionicons name="water" size={20} color="#66B3FF" />
               </View>
               <Text style={styles.macroLabel}>Fats</Text>
-              <Text style={styles.macroValue}>{scanResult.fatG}g</Text>
+              <Text style={styles.macroValue}>{formatNutritionValue(scanResult.fatG)}</Text>
             </View>
           </View>
 

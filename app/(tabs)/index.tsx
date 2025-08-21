@@ -21,6 +21,13 @@ export default function HomeScreen() {
   const [editFat, setEditFat] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Helper function to format nutritional values to one decimal place maximum
+  const formatNutritionValue = (value: number): string => {
+    if (value === 0) return '0g';
+    // Round to 1 decimal place and remove trailing .0 if it's a whole number
+    const rounded = Math.round(value * 10) / 10;
+    return rounded % 1 === 0 ? `${rounded}g` : `${rounded}g`;
+  };
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (user) => {
@@ -120,13 +127,13 @@ export default function HomeScreen() {
           <CardComponent
             caloriesLeft={selectedTab === 'today' 
               ? Math.max(0, (plan?.calories ?? 0) - (dailyTotals.calories ?? 0))
-              : dailyTotals.calories
+              : Math.round(dailyTotals.calories)
             }
             caloriesProgress={plan ? Math.min(1, Math.max(0, dailyTotals.calories / plan.calories)) : 0}
             macros={[
-              { valueText: `${dailyTotals.protein}g / ${plan?.protein ?? 0}g`, helper: selectedTab === 'today' ? 'Protein' : 'Protein consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.protein / plan.protein)) : 0, color: '#FF6B6B', icon: 'flash' },
-              { valueText: `${dailyTotals.carbs}g / ${plan?.carbs ?? 0}g`, helper: selectedTab === 'today' ? 'Carbs' : 'Carbs consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.carbs / plan.carbs)) : 0, color: '#8B4513', icon: 'leaf' },
-              { valueText: `${dailyTotals.fat}g / ${plan?.fat ?? 0}g`, helper: selectedTab === 'today' ? 'Fats' : 'Fats consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.fat / plan.fat)) : 0, color: '#4A90E2', icon: 'water' },
+              { valueText: `${formatNutritionValue(dailyTotals.protein)} / ${plan?.protein ?? 0}g`, helper: selectedTab === 'today' ? 'Protein' : 'Protein consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.protein / plan.protein)) : 0, color: '#FF6B6B', icon: 'flash' },
+              { valueText: `${formatNutritionValue(dailyTotals.carbs)} / ${plan?.carbs ?? 0}g`, helper: selectedTab === 'today' ? 'Carbs' : 'Carbs consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.carbs / plan.carbs)) : 0, color: '#8B4513', icon: 'leaf' },
+              { valueText: `${formatNutritionValue(dailyTotals.fat)} / ${plan?.fat ?? 0}g`, helper: selectedTab === 'today' ? 'Fats' : 'Fats consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.fat / plan.fat)) : 0, color: '#4A90E2', icon: 'water' },
             ]}
           />
           {selectedTab === 'today' && (
@@ -179,11 +186,11 @@ export default function HomeScreen() {
                 )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.mealTitle} numberOfLines={1}>{m.title || 'Meal'}</Text>
-                  <View style={styles.mealRow}><FontAwesome name="fire" size={14} color="#111" /><Text style={styles.mealCal}> {m.calories} kcal</Text></View>
+                  <View style={styles.mealRow}><FontAwesome name="fire" size={14} color="#111" /><Text style={styles.mealCal}> {Math.round(m.calories)} kcal</Text></View>
                   <View style={styles.mealMacrosRow}>
-                    <Text style={[styles.mealMacro, { color: '#EF4444' }]}>⚡ {m.proteinG}g</Text>
-                    <Text style={[styles.mealMacro, { color: '#D97706' }]}>🌾 {m.carbsG}g</Text>
-                    <Text style={[styles.mealMacro, { color: '#2563EB' }]}>💧 {m.fatG}g</Text>
+                    <Text style={[styles.mealMacro, { color: '#EF4444' }]}>⚡ {formatNutritionValue(m.proteinG)}</Text>
+                    <Text style={[styles.mealMacro, { color: '#D97706' }]}>🌾 {formatNutritionValue(m.carbsG)}</Text>
+                    <Text style={[styles.mealMacro, { color: '#2563EB' }]}>💧 {formatNutritionValue(m.fatG)}</Text>
                   </View>
                 </View>
                 <View style={styles.mealTimePill}>

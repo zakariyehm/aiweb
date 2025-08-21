@@ -9,6 +9,14 @@ export default function FixResultsScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   
+  // Helper function to format nutritional values to one decimal place maximum
+  const formatNutritionValue = (value: number): string => {
+    if (value === 0) return '0g';
+    // Round to 1 decimal place and remove trailing .0 if it's a whole number
+    const rounded = Math.round(value * 10) / 10;
+    return rounded % 1 === 0 ? `${rounded}g` : `${rounded}g`;
+  };
+
   // Parse the scan result from navigation params
   const scanResult: ScanResult = {
     title: params.title as string || "Unknown dish",
@@ -55,10 +63,10 @@ export default function FixResultsScreen() {
           
           <View style={styles.infoCard}>
             <Text style={styles.infoTitle}>Current Nutrition Data</Text>
-            <Text style={styles.infoText}>Calories: {scanResult.calories}</Text>
-            <Text style={styles.infoText}>Protein: {scanResult.proteinG}g</Text>
-            <Text style={styles.infoText}>Carbs: {scanResult.carbsG}g</Text>
-            <Text style={styles.infoText}>Fat: {scanResult.fatG}g</Text>
+            <Text style={styles.infoText}>Calories: {Math.round(scanResult.calories)}</Text>
+            <Text style={styles.infoText}>Protein: {formatNutritionValue(scanResult.proteinG)}</Text>
+            <Text style={styles.infoText}>Carbs: {formatNutritionValue(scanResult.carbsG)}</Text>
+            <Text style={styles.infoText}>Fat: {formatNutritionValue(scanResult.fatG)}</Text>
             <Text style={styles.infoText}>Health Score: {scanResult.healthScore}/10</Text>
           </View>
 

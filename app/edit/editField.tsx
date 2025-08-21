@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   },
   cooldownText: { textAlign: 'center', color: '#6b7280', marginBottom: 8 },
   saveBtn: {
-    backgroundColor: '#2ecc71',
+    backgroundColor: '#000',
     borderRadius: 8,
     alignItems: 'center',
     paddingVertical: 14,

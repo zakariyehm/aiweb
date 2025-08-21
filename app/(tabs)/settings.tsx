@@ -1,7 +1,7 @@
+import { useAuth } from '@/hooks/useAuth';
 import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { signOut } from 'firebase/auth';
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +27,7 @@ export default function SettingsScreen() {
   const [rolloverCalories, setRolloverCalories] = useState(true);
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<any>({});
+  const { logout } = useAuth();
   useEffect(() => {
     // Read profile from Firestore
     const user = auth.currentUser;
@@ -169,7 +170,7 @@ export default function SettingsScreen() {
         <View style={[styles.listSection, { marginBottom: 24 }]}> 
           <TouchableOpacity
             style={[styles.row, { justifyContent: 'center' }]}
-            onPress={async () => {
+            onPress={() => {
               Alert.alert(
                 'Logout',
                 'Are you sure you want to sign out?',
@@ -180,9 +181,11 @@ export default function SettingsScreen() {
                     style: 'destructive',
                     onPress: async () => {
                       try {
-                        await signOut(auth);
-                        router.replace('/onboarding/welcome');
-                      } catch (e) {}
+                        await logout();
+                        router.replace('/onboarding/splash');
+                      } catch (e) {
+                        console.error('Logout error:', e);
+                      }
                     },
                   },
                 ]
