@@ -90,11 +90,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   smallCard: {
-    width: '32%',
+    flex: 1,
+    marginHorizontal: 4,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.05,
@@ -103,14 +104,18 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   macroValue: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
     color: '#111111',
+    textAlign: 'center',
+    lineHeight: 14,
   },
   macroLabel: {
     marginTop: 2,
     fontSize: 12,
     color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });
 

@@ -83,7 +83,7 @@ export default function HomeScreen() {
   const { 
     recentlyEaten, 
     dailyTotals
-  } = useDailyNutrition(uid);
+  } = useDailyNutrition(uid, selectedTab);
   const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(uid);
 
   return (
@@ -118,17 +118,22 @@ export default function HomeScreen() {
 
         <View style={styles.cardWrapper}>
           <CardComponent
-            caloriesLeft={Math.max(0, (plan?.calories ?? 0) - (dailyTotals.calories ?? 0))}
+            caloriesLeft={selectedTab === 'today' 
+              ? Math.max(0, (plan?.calories ?? 0) - (dailyTotals.calories ?? 0))
+              : dailyTotals.calories
+            }
             caloriesProgress={plan ? Math.min(1, Math.max(0, dailyTotals.calories / plan.calories)) : 0}
             macros={[
-              { valueText: `${dailyTotals.protein}g / ${plan?.protein ?? 0}g`, helper: 'Protein', progress: plan ? Math.min(1, Math.max(0, dailyTotals.protein / plan.protein)) : 0, color: '#FF6B6B', icon: 'flash' },
-              { valueText: `${dailyTotals.carbs}g / ${plan?.carbs ?? 0}g`, helper: 'Carbs', progress: plan ? Math.min(1, Math.max(0, dailyTotals.carbs / plan.carbs)) : 0, color: '#8B4513', icon: 'leaf' },
-              { valueText: `${dailyTotals.fat}g / ${plan?.fat ?? 0}g`, helper: 'Fats', progress: plan ? Math.min(1, Math.max(0, dailyTotals.fat / plan.fat)) : 0, color: '#4A90E2', icon: 'water' },
+              { valueText: `${dailyTotals.protein}g / ${plan?.protein ?? 0}g`, helper: selectedTab === 'today' ? 'Protein' : 'Protein consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.protein / plan.protein)) : 0, color: '#FF6B6B', icon: 'flash' },
+              { valueText: `${dailyTotals.carbs}g / ${plan?.carbs ?? 0}g`, helper: selectedTab === 'today' ? 'Carbs' : 'Carbs consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.carbs / plan.carbs)) : 0, color: '#8B4513', icon: 'leaf' },
+              { valueText: `${dailyTotals.fat}g / ${plan?.fat ?? 0}g`, helper: selectedTab === 'today' ? 'Fats' : 'Fats consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.fat / plan.fat)) : 0, color: '#4A90E2', icon: 'water' },
             ]}
           />
-          <TouchableOpacity style={styles.editButton} onPress={openEdit} disabled={!plan}>
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
+          {selectedTab === 'today' && (
+            <TouchableOpacity style={styles.editButton} onPress={openEdit} disabled={!plan}>
+              <Text style={styles.editButtonText}>Edit</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.paginationDots}>
@@ -139,12 +144,22 @@ export default function HomeScreen() {
 
 
         <View style={styles.recentlyEatenSection}>
-          <Text style={styles.sectionTitle}>Recently eaten</Text>
+          <Text style={styles.sectionTitle}>
+            {selectedTab === 'today' ? 'Recently eaten' : 'Yesterday\'s meals'}
+          </Text>
           {recentlyEaten.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>You haven&apos;t eaten anything today</Text>
+              <Text style={styles.emptyTitle}>
+                {selectedTab === 'today' 
+                  ? 'You haven&apos;t eaten anything today' 
+                  : 'No meals recorded yesterday'
+                }
+              </Text>
               <Text style={styles.emptyDescription}>
-                Start tracking today&apos;s meals by taking a quick picture
+                {selectedTab === 'today'
+                  ? 'Start tracking today&apos;s meals by taking a quick picture'
+                  : 'Yesterday was a rest day - no meals were logged'
+                }
               </Text>
               <View style={styles.arrowContainer}>
                 <FontAwesome name="arrow-down" size={24} color="#666" style={styles.arrow} />

@@ -33,12 +33,18 @@ const getTodayDateKey = (): string => {
   return today.toISOString().split('T')[0]; // YYYY-MM-DD format
 };
 
+const getYesterdayDateKey = (): string => {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return yesterday.toISOString().split('T')[0]; // YYYY-MM-DD format
+};
+
 const isNewDay = (lastDateKey: string): boolean => {
   const todayKey = getTodayDateKey();
   return lastDateKey !== todayKey;
 };
 
-export function useDailyNutrition(userId: string | undefined) {
+export function useDailyNutrition(userId: string | undefined, selectedDate: 'today' | 'yesterday' = 'today') {
   const [recentlyEaten, setRecentlyEaten] = useState<NutritionEntry[]>([]);
   const [dailyTotals, setDailyTotals] = useState<DailyTotals>({
     calories: 0,
@@ -99,21 +105,21 @@ export function useDailyNutrition(userId: string | undefined) {
     setCurrentDateKey(getTodayDateKey());
   }, []);
 
-  // Listen to today's meals
+  // Listen to meals for selected date
   useEffect(() => {
     if (!userId) return;
 
-    const todayKey = getTodayDateKey();
+    const dateKey = selectedDate === 'today' ? getTodayDateKey() : getYesterdayDateKey();
     
-    // Check if it's a new day
-    if (isNewDay(currentDateKey)) {
+    // Check if it's a new day (only for today)
+    if (selectedDate === 'today' && isNewDay(currentDateKey)) {
       resetForNewDay();
       return;
     }
 
     const mealsQuery = query(
       collection(db, 'users', userId, 'meals'),
-      where('date', '==', todayKey),
+      where('date', '==', dateKey),
       orderBy('createdAt', 'desc')
     );
 
@@ -131,7 +137,7 @@ export function useDailyNutrition(userId: string | undefined) {
           fatG: data.fatG || 0,
           imageUri: data.imageUri || null,
           createdAt: data.createdAt,
-          date: data.date || todayKey,
+          date: data.date || dateKey,
         });
       });
 
@@ -148,7 +154,7 @@ export function useDailyNutrition(userId: string | undefined) {
     });
 
     return unsubscribe;
-  }, [userId, currentDateKey, calculateDailyTotals, resetForNewDay]);
+  }, [userId, currentDateKey, calculateDailyTotals, resetForNewDay, selectedDate]);
 
   // Check for new day at midnight
   useEffect(() => {
