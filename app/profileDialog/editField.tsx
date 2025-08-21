@@ -25,6 +25,8 @@ export default function EditFieldModal() {
   const [hasManualChanged, setHasManualChanged] = useState<boolean>(false);
   const [currentLower, setCurrentLower] = useState<string>('');
   const debounceRef = useRef<any>(null);
+  const [currentPassword, setCurrentPassword] = useState<string>('');
+  const [newPassword, setNewPassword] = useState<string>('');
 
   useEffect(() => {
     nav.setOptions({ title: label || 'Edit' });
@@ -116,6 +118,30 @@ export default function EditFieldModal() {
       const { doc, setDoc, getDoc, serverTimestamp, writeBatch } = require('firebase/firestore');
       const user = auth.currentUser;
       if (!user) throw new Error('Not signed in');
+
+      // Handle password change using Firebase Auth
+      if (field === 'password') {
+        const email = user.email;
+        if (!email) throw new Error('Missing email for reauthentication');
+        if (!currentPassword || !newPassword) throw new Error('Enter current and new password');
+        if (newPassword.length < 6) throw new Error('New password must be at least 6 characters');
+        if (newPassword === currentPassword) throw new Error('New password must be different');
+        try {
+          const { EmailAuthProvider, reauthenticateWithCredential, updatePassword } = require('firebase/auth');
+          const cred = EmailAuthProvider.credential(email, currentPassword);
+          await reauthenticateWithCredential(user, cred);
+          await updatePassword(user, newPassword);
+          console.log('[Password] Updated successfully');
+          router.replace('/(tabs)/settings');
+          return;
+        } catch (e: any) {
+          console.warn('[Password] Update error', e?.code || e?.message);
+          const code = e?.code || '';
+          if (code === 'auth/wrong-password') throw new Error('Current password is incorrect');
+          if (code === 'auth/weak-password') throw new Error('New password is too weak');
+          throw new Error('Could not update password. Please try again.');
+        }
+      }
       const ref = doc(db, 'users', user.uid);
       const snap = await getDoc(ref);
       const data = snap.exists() ? snap.data() : {};
@@ -228,17 +254,44 @@ export default function EditFieldModal() {
       >
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
-        <Text style={styles.fieldLabel}>{label}</Text>
-        <TextInput
-          value={value}
-          onChangeText={setValue}
-          placeholder={`Enter ${label.toLowerCase()}`}
-          style={[styles.inputBase, inputStyle]}
-          autoCapitalize={field === 'email' || field === 'username' ? 'none' : 'words'}
-          keyboardType={keyboardType as any}
-          secureTextEntry={field === 'password'}
-          editable={!saving}
-        />
+        {field === 'password' ? (
+          <>
+            <Text style={styles.fieldLabel}>Current Password</Text>
+            <TextInput
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              placeholder="Enter current password"
+              style={[styles.inputBase, styles.underlineInput]}
+              autoCapitalize="none"
+              secureTextEntry
+              editable={!saving}
+            />
+            <Text style={[styles.fieldLabel, { marginTop: 16 }]}>New Password</Text>
+            <TextInput
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="Enter new password"
+              style={[styles.inputBase, styles.underlineInput]}
+              autoCapitalize="none"
+              secureTextEntry
+              editable={!saving}
+            />
+          </>
+        ) : (
+          <>
+            <Text style={styles.fieldLabel}>{label}</Text>
+            <TextInput
+              value={value}
+              onChangeText={setValue}
+              placeholder={`Enter ${label.toLowerCase()}`}
+              style={[styles.inputBase, inputStyle]}
+              autoCapitalize={field === 'email' || field === 'username' ? 'none' : 'words'}
+              keyboardType={keyboardType as any}
+              secureTextEntry={field === 'password'}
+              editable={!saving}
+            />
+          </>
+        )}
 
         {field === 'username' ? (
           <Text
@@ -277,7 +330,11 @@ export default function EditFieldModal() {
         {saveBlockedByCooldown && cooldownUntil ? (
           <Text style={styles.cooldownText}>You can change again on {cooldownUntil.toLocaleDateString()}.</Text>
         ) : null}
-        <TouchableOpacity style={[styles.saveBtn, (!canSave) && { opacity: 0.5 }]} disabled={!canSave} onPress={save}>
+        <TouchableOpacity
+          style={[styles.saveBtn, (!canSave || (field === 'password' && (!currentPassword || !newPassword))) && { opacity: 0.5 }]}
+          disabled={!canSave || (field === 'password' && (!currentPassword || !newPassword))}
+          onPress={save}
+        >
           <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'SAVE'}</Text>
         </TouchableOpacity>
       </View>
