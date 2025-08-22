@@ -89,7 +89,9 @@ export default function HomeScreen() {
   const uid = auth.currentUser?.uid;
   const { 
     recentlyEaten, 
-    dailyTotals
+    dailyTotals,
+    todayData,
+    yesterdayData
   } = useDailyNutrition(uid, selectedTab);
   const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(uid);
 
@@ -126,14 +128,57 @@ export default function HomeScreen() {
         <View style={styles.cardWrapper}>
           <CardComponent
             caloriesLeft={selectedTab === 'today' 
-              ? Math.max(0, (plan?.calories ?? 0) - (dailyTotals.calories ?? 0))
-              : Math.round(dailyTotals.calories)
+              ? Math.max(0, (plan?.calories ?? 0) - (todayData.dailyTotals.calories ?? 0))
+              : Math.max(0, (plan?.calories ?? 0) - (yesterdayData.dailyTotals.calories ?? 0))
             }
-            caloriesProgress={plan ? Math.min(1, Math.max(0, dailyTotals.calories / plan.calories)) : 0}
-            macros={[
-              { valueText: `${formatNutritionValue(dailyTotals.protein)} / ${plan?.protein ?? 0}g`, helper: selectedTab === 'today' ? 'Protein' : 'Protein consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.protein / plan.protein)) : 0, color: '#FF6B6B', icon: 'flash' },
-              { valueText: `${formatNutritionValue(dailyTotals.carbs)} / ${plan?.carbs ?? 0}g`, helper: selectedTab === 'today' ? 'Carbs' : 'Carbs consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.carbs / plan.carbs)) : 0, color: '#8B4513', icon: 'leaf' },
-              { valueText: `${formatNutritionValue(dailyTotals.fat)} / ${plan?.fat ?? 0}g`, helper: selectedTab === 'today' ? 'Fats' : 'Fats consumed', progress: plan ? Math.min(1, Math.max(0, dailyTotals.fat / plan.fat)) : 0, color: '#4A90E2', icon: 'water' },
+            caloriesProgress={selectedTab === 'today' 
+              ? (plan ? Math.min(1, Math.max(0, todayData.dailyTotals.calories / plan.calories)) : 0)
+              : (plan ? Math.min(1, Math.max(0, yesterdayData.dailyTotals.calories / plan.calories)) : 0)
+            }
+            macros={selectedTab === 'today' ? [
+              { 
+                valueText: `${formatNutritionValue(todayData.dailyTotals.protein)} / ${plan?.protein ?? 0}g`, 
+                helper: 'Protein', 
+                progress: plan ? Math.min(1, Math.max(0, todayData.dailyTotals.protein / plan.protein)) : 0, 
+                color: '#F97373', 
+                icon: 'flash' 
+              },
+              { 
+                valueText: `${formatNutritionValue(todayData.dailyTotals.carbs)} / ${plan?.carbs ?? 0}g`, 
+                helper: 'Carbs', 
+                progress: plan ? Math.min(1, Math.max(0, todayData.dailyTotals.carbs / plan.carbs)) : 0, 
+                color: '#F59E0B', 
+                icon: 'leaf' 
+              },
+              { 
+                valueText: `${formatNutritionValue(todayData.dailyTotals.fat)} / ${plan?.fat ?? 0}g`, 
+                helper: 'Fats', 
+                progress: plan ? Math.min(1, Math.max(0, todayData.dailyTotals.fat / plan.fat)) : 0, 
+                color: '#3B82F6', 
+                icon: 'water' 
+              },
+            ] : [
+              { 
+                valueText: `${formatNutritionValue(yesterdayData.dailyTotals.protein)} / ${plan?.protein ?? 0}g`, 
+                helper: 'Protein', 
+                progress: plan ? Math.min(1, Math.max(0, yesterdayData.dailyTotals.protein / plan.protein)) : 0, 
+                color: '#F97373', 
+                icon: 'flash' 
+              },
+              { 
+                valueText: `${formatNutritionValue(yesterdayData.dailyTotals.carbs)} / ${plan?.carbs ?? 0}g`, 
+                helper: 'Carbs', 
+                progress: plan ? Math.min(1, Math.max(0, yesterdayData.dailyTotals.carbs / plan.carbs)) : 0, 
+                color: '#F59E0B', 
+                icon: 'leaf' 
+              },
+              { 
+                valueText: `${formatNutritionValue(yesterdayData.dailyTotals.fat)} / ${plan?.fat ?? 0}g`, 
+                helper: 'Fats', 
+                progress: plan ? Math.min(1, Math.max(0, yesterdayData.dailyTotals.fat / plan.fat)) : 0, 
+                color: '#3B82F6', 
+                icon: 'water' 
+              },
             ]}
           />
           {selectedTab === 'today' && (
@@ -148,13 +193,11 @@ export default function HomeScreen() {
           <View style={styles.dot} />
         </View>
 
-
-
         <View style={styles.recentlyEatenSection}>
           <Text style={styles.sectionTitle}>
             {selectedTab === 'today' ? 'Recently eaten' : 'Yesterday\'s meals'}
           </Text>
-          {recentlyEaten.length === 0 ? (
+          {(selectedTab === 'today' ? todayData.recentlyEaten : yesterdayData.recentlyEaten).length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>
                 {selectedTab === 'today' 
@@ -173,7 +216,7 @@ export default function HomeScreen() {
               </View>
             </View>
           ) : (
-            recentlyEaten.map((m) => (
+            (selectedTab === 'today' ? todayData.recentlyEaten : yesterdayData.recentlyEaten).map((m) => (
               <View key={m.id} style={styles.mealCard}>
                 {m.imageUri ? (
                   <View style={styles.mealImageWrap}>

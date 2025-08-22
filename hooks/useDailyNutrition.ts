@@ -54,6 +54,27 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
   });
   const [currentDateKey, setCurrentDateKey] = useState<string>(getTodayDateKey());
   const [loading, setLoading] = useState(true);
+  
+  // Separate state for today's and yesterday's data
+  const [todayData, setTodayData] = useState<{
+    recentlyEaten: NutritionEntry[];
+    dailyTotals: DailyTotals;
+    date: string;
+  }>({
+    recentlyEaten: [],
+    dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    date: getTodayDateKey()
+  });
+
+  const [yesterdayData, setYesterdayData] = useState<{
+    recentlyEaten: NutritionEntry[];
+    dailyTotals: DailyTotals;
+    date: string;
+  }>({
+    recentlyEaten: [],
+    dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    date: getYesterdayDateKey()
+  });
 
   // Calculate daily totals from recently eaten foods
   const calculateDailyTotals = useCallback((entries: NutritionEntry[]): DailyTotals => {
@@ -65,105 +86,178 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
     }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
   }, []);
 
-  // Add a new food entry to today's log
+  // Add a new food entry to today's log (always current date)
   const addFoodEntry = useCallback(async (foodData: Omit<NutritionEntry, 'id' | 'createdAt' | 'date'>) => {
     if (!userId) return;
 
     try {
-      const todayKey = getTodayDateKey();
+      const todayKey = getTodayDateKey(); // Always use current date
       const newEntry = {
         ...foodData,
-        date: todayKey,
+        date: todayKey, // Force current date
         createdAt: serverTimestamp(),
       };
 
       // Add to Firestore
       await addDoc(collection(db, 'users', userId, 'meals'), newEntry);
-
-      // Update local state immediately for better UX
-      const entryWithId = {
-        ...newEntry,
-        id: `temp-${Date.now()}`, // Temporary ID until Firestore syncs
-        createdAt: new Date(),
-      };
-
-      setRecentlyEaten(prev => [entryWithId, ...prev]);
-      
-      // Recalculate totals
-      const newTotals = calculateDailyTotals([entryWithId, ...recentlyEaten]);
-      setDailyTotals(newTotals);
+      console.log(`Added food entry for ${todayKey}:`, foodData.title);
 
     } catch (error) {
       console.error('Failed to add food entry:', error);
     }
-  }, [userId, recentlyEaten, calculateDailyTotals]);
+  }, [userId]);
 
-  // Reset daily log for new day
-  const resetForNewDay = useCallback(() => {
-    setRecentlyEaten([]);
-    setDailyTotals({ calories: 0, protein: 0, carbs: 0, fat: 0 });
-    setCurrentDateKey(getTodayDateKey());
-  }, []);
+  // Move today's data to yesterday and reset for new day
+  const transitionToNewDay = useCallback(() => {
+    const newTodayDate = getTodayDateKey();
+    const newYesterdayDate = getYesterdayDateKey();
+    
+    // Move current today's data to yesterday with proper date
+    setYesterdayData({
+      recentlyEaten: todayData.recentlyEaten,
+      dailyTotals: todayData.dailyTotals,
+      date: newYesterdayDate // Yesterday's date
+    });
 
-  // Listen to meals for selected date
+    // Reset today's data for the new day
+    setTodayData({
+      recentlyEaten: [],
+      dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      date: newTodayDate
+    });
+
+    setCurrentDateKey(newTodayDate);
+    console.log(`Daily transition completed: moved ${todayData.date} to yesterday, reset ${newTodayDate} to 0`);
+  }, [todayData]);
+
+  // Check for new day transition and handle it
+  useEffect(() => {
+    if (isNewDay(currentDateKey)) {
+      transitionToNewDay();
+    }
+  }, [currentDateKey, transitionToNewDay]);
+
+  // Listen to today's meals (current date only)
   useEffect(() => {
     if (!userId) return;
 
-    const dateKey = selectedDate === 'today' ? getTodayDateKey() : getYesterdayDateKey();
-    
-    // Check if it's a new day (only for today)
-    if (selectedDate === 'today' && isNewDay(currentDateKey)) {
-      resetForNewDay();
-      return;
-    }
-
-    const mealsQuery = query(
+    const todayKey = getTodayDateKey();
+    const todayMealsQuery = query(
       collection(db, 'users', userId, 'meals'),
-      where('date', '==', dateKey),
+      where('date', '==', todayKey),
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(mealsQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(todayMealsQuery, (snapshot) => {
       const entries: NutritionEntry[] = [];
       
       snapshot.forEach((doc) => {
         const data = doc.data();
-        entries.push({
-          id: doc.id,
-          title: data.title || 'Unknown',
-          calories: data.calories || 0,
-          proteinG: data.proteinG || 0,
-          carbsG: data.carbsG || 0,
-          fatG: data.fatG || 0,
-          imageUri: data.imageUri || null,
-          createdAt: data.createdAt,
-          date: data.date || dateKey,
-        });
+        // Only include meals from today's date
+        if (data.date === todayKey) {
+          entries.push({
+            id: doc.id,
+            title: data.title || 'Unknown',
+            calories: data.calories || 0,
+            proteinG: data.proteinG || 0,
+            carbsG: data.carbsG || 0,
+            fatG: data.fatG || 0,
+            imageUri: data.imageUri || null,
+            createdAt: data.createdAt,
+            date: data.date || todayKey,
+          });
+        }
       });
 
-      setRecentlyEaten(entries);
-      
-      // Calculate and update daily totals
-      const totals = calculateDailyTotals(entries);
-      setDailyTotals(totals);
+      // Update today's data with filtered meals
+      setTodayData(prev => ({
+        ...prev,
+        recentlyEaten: entries,
+        dailyTotals: calculateDailyTotals(entries),
+        date: todayKey
+      }));
       
       setLoading(false);
+      console.log(`Loaded ${entries.length} meals for today (${todayKey})`);
     }, (error) => {
-      console.error('Error fetching meals:', error);
+      console.error('Error fetching today\'s meals:', error);
       setLoading(false);
     });
 
     return unsubscribe;
-  }, [userId, currentDateKey, calculateDailyTotals, resetForNewDay, selectedDate]);
+  }, [userId, calculateDailyTotals]);
 
-  // Check for new day at midnight
+  // Listen to yesterday's meals (previous date only)
+  useEffect(() => {
+    if (!userId) return;
+
+    const yesterdayKey = getYesterdayDateKey();
+    const yesterdayMealsQuery = query(
+      collection(db, 'users', userId, 'meals'),
+      where('date', '==', yesterdayKey),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(yesterdayMealsQuery, (snapshot) => {
+      const entries: NutritionEntry[] = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        // Only include meals from yesterday's date
+        if (data.date === yesterdayKey) {
+          entries.push({
+            id: doc.id,
+            title: data.title || 'Unknown',
+            calories: data.calories || 0,
+            proteinG: data.proteinG || 0,
+            carbsG: data.carbsG || 0,
+            fatG: data.fatG || 0,
+            imageUri: data.imageUri || null,
+            createdAt: data.createdAt,
+            date: data.date || yesterdayKey,
+          });
+        }
+      });
+
+      // Update yesterday's data with filtered meals
+      setYesterdayData(prev => ({
+        ...prev,
+        recentlyEaten: entries,
+        dailyTotals: calculateDailyTotals(entries),
+        date: yesterdayKey
+      }));
+      
+      console.log(`Loaded ${entries.length} meals for yesterday (${yesterdayKey})`);
+    }, (error) => {
+      console.error('Error fetching yesterday\'s meals:', error);
+    });
+
+    return unsubscribe;
+  }, [userId, calculateDailyTotals]);
+
+  // Update main state based on selected tab
+  useEffect(() => {
+    if (selectedDate === 'today') {
+      setRecentlyEaten(todayData.recentlyEaten);
+      setDailyTotals(todayData.dailyTotals);
+    } else {
+      setRecentlyEaten(yesterdayData.recentlyEaten);
+      setDailyTotals(yesterdayData.dailyTotals);
+    }
+  }, [selectedDate, todayData, yesterdayData]);
+
+  // Check for new day at midnight (every minute)
   useEffect(() => {
     const checkForNewDay = () => {
       const todayKey = getTodayDateKey();
       if (isNewDay(currentDateKey)) {
-        resetForNewDay();
+        console.log(`🌅 New day detected! Transitioning from ${currentDateKey} to ${todayKey}`);
+        transitionToNewDay();
       }
     };
+
+    // Check immediately on mount
+    checkForNewDay();
 
     // Check every minute for new day
     const interval = setInterval(checkForNewDay, 60000);
@@ -176,7 +270,7 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
     return () => {
       clearInterval(interval);
     };
-  }, [currentDateKey, resetForNewDay]);
+  }, [currentDateKey, transitionToNewDay]);
 
   // Calculate progress percentages (for UI circles)
   const calculateProgress = useCallback((target: number, current: number): number => {
@@ -186,21 +280,24 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
 
   const getProgressPercentages = useCallback((targets: DailyTotals): DailyProgress => {
     return {
-      calories: calculateProgress(targets.calories, dailyTotals.calories),
-      protein: calculateProgress(targets.protein, dailyTotals.protein),
-      carbs: calculateProgress(targets.carbs, dailyTotals.carbs),
-      fat: calculateProgress(targets.fat, dailyTotals.fat),
+      calories: calculateProgress(targets.calories, todayData.dailyTotals.calories),
+      protein: calculateProgress(targets.protein, todayData.dailyTotals.protein),
+      carbs: calculateProgress(targets.carbs, todayData.dailyTotals.carbs),
+      fat: calculateProgress(targets.fat, todayData.dailyTotals.fat),
     };
-  }, [dailyTotals, calculateProgress]);
+  }, [todayData.dailyTotals, calculateProgress]);
 
   return {
     recentlyEaten,
     dailyTotals,
     loading,
     addFoodEntry,
-    resetForNewDay,
+    transitionToNewDay,
     getProgressPercentages,
     currentDateKey,
+    // Return separate data for today and yesterday
+    todayData,
+    yesterdayData,
   };
 }
 

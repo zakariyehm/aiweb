@@ -30,26 +30,41 @@ const CardComponent: React.FC<Props> = ({
 }) => {
   return (
     <View style={styles.container}>
-      <View style={styles.topCard}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.bigNumber}>{caloriesLeft}</Text>
-          <Text style={styles.caption}>Calories left</Text>
-        </View>
-        <ProgressRing size={88} strokeWidth={10} progress={caloriesProgress} color="#111111" trackColor="#E9ECEF">
-          <Ionicons name="flame" size={24} color="#111111" />
+      {/* Left Section - Calories */}
+      <View style={styles.leftSection}>
+        <ProgressRing 
+          size={120} 
+          strokeWidth={12} 
+          progress={caloriesProgress} 
+          color="#000000" 
+          trackColor="#E5E7EB"
+        >
+          <View style={styles.caloriesContent}>
+            <Text style={styles.caloriesNumber}>{caloriesLeft}</Text>
+            <Text style={styles.caloriesLabel}>Calories left</Text>
+          </View>
         </ProgressRing>
       </View>
 
-      <View style={styles.bottomRow}>
+      {/* Right Section - Macronutrients */}
+      <View style={styles.rightSection}>
         {macros.slice(0, 3).map((m, idx) => (
-          <View key={idx} style={styles.smallCard}>
-            <Text style={styles.macroValue}>{m.valueText}</Text>
-            <Text style={styles.macroLabel}>{m.helper}</Text>
-            <View style={{ marginTop: 8 }}>
-              <ProgressRing size={50} strokeWidth={7} progress={m.progress} color={m.color} trackColor="#EFEFEF">
-                <Ionicons name={m.icon} size={18} color={m.color} />
-              </ProgressRing>
+          <View key={idx} style={styles.macroItem}>
+            <Text style={styles.macroTitle}>{m.helper.split(' ')[0]}</Text>
+            <View style={styles.progressBarContainer}>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { 
+                      width: `${Math.min(m.progress, 1) * 100}%`,
+                      backgroundColor: m.color
+                    }
+                  ]} 
+                />
+              </View>
             </View>
+            <Text style={styles.macroValue}>{m.valueText}</Text>
           </View>
         ))}
       </View>
@@ -59,63 +74,68 @@ const CardComponent: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
-  },
-  topCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    padding: 16,
+    padding: 20,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
-  bigNumber: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#111111',
-  },
-  caption: {
-    marginTop: 2,
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  bottomRow: {
-    marginTop: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  smallCard: {
+  leftSection: {
     flex: 1,
-    marginHorizontal: 4,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
+    justifyContent: 'center',
+  },
+  caloriesContent: {
+    alignItems: 'center',
+  },
+  caloriesNumber: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#000000',
+    marginBottom: 4,
+  },
+  caloriesLabel: {
+    fontSize: 14,
+    color: '#000000',
+    fontWeight: '400',
+  },
+  rightSection: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingLeft: 20,
+  },
+  macroItem: {
+    marginBottom: 16,
+  },
+  macroTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000000',
+    marginBottom: 8,
+  },
+  progressBarContainer: {
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
   },
   macroValue: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#111111',
-    textAlign: 'center',
-    lineHeight: 14,
-  },
-  macroLabel: {
-    marginTop: 2,
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 16,
+    fontSize: 14,
+    color: '#000000',
+    fontWeight: '400',
   },
 });
 
