@@ -30,13 +30,21 @@ export interface DailyProgress {
 
 const getTodayDateKey = (): string => {
   const today = new Date();
-  return today.toISOString().split('T')[0]; // YYYY-MM-DD format
+  // Use local timezone to avoid iOS timezone issues
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const getYesterdayDateKey = (): string => {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  return yesterday.toISOString().split('T')[0]; // YYYY-MM-DD format
+  // Use local timezone to avoid iOS timezone issues
+  const year = yesterday.getFullYear();
+  const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const day = String(yesterday.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const isNewDay = (lastDateKey: string): boolean => {
@@ -142,6 +150,28 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
     if (!userId) return;
 
     const todayKey = getTodayDateKey();
+    console.log(`[iOS Debug] Setting up today's meals listener for date: ${todayKey}`);
+    
+    // First, let's check if there are any meals at all
+    const allMealsQuery = query(
+      collection(db, 'users', userId, 'meals'),
+      orderBy('createdAt', 'desc')
+    );
+    
+    const allMealsUnsubscribe = onSnapshot(allMealsQuery, (snapshot) => {
+      console.log(`[iOS Debug] All meals snapshot received with ${snapshot.size} total documents`);
+      if (snapshot.size > 0) {
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          console.log(`[iOS Debug] All meals document ${doc.id}:`, { 
+            title: data.title, 
+            date: data.date, 
+            createdAt: data.createdAt 
+          });
+        });
+      }
+    });
+    
     const todayMealsQuery = query(
       collection(db, 'users', userId, 'meals'),
       where('date', '==', todayKey),
@@ -151,8 +181,17 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
     const unsubscribe = onSnapshot(todayMealsQuery, (snapshot) => {
       const entries: NutritionEntry[] = [];
       
+      console.log(`[iOS Debug] Today's snapshot received with ${snapshot.size} documents`);
+      
       snapshot.forEach((doc) => {
         const data = doc.data();
+        console.log(`[iOS Debug] Document ${doc.id}:`, { 
+          title: data.title, 
+          date: data.date, 
+          expectedDate: todayKey,
+          createdAt: data.createdAt 
+        });
+        
         // Only include meals from today's date
         if (data.date === todayKey) {
           entries.push({
@@ -166,6 +205,8 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
             createdAt: data.createdAt,
             date: data.date || todayKey,
           });
+        } else {
+          console.log(`[iOS Debug] Skipping document ${doc.id} - date mismatch: ${data.date} vs ${todayKey}`);
         }
       });
 
@@ -178,13 +219,21 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
       }));
       
       setLoading(false);
-      console.log(`Loaded ${entries.length} meals for today (${todayKey})`);
+      console.log(`[iOS Debug] Loaded ${entries.length} meals for today (${todayKey})`);
     }, (error) => {
-      console.error('Error fetching today\'s meals:', error);
+      console.error('[iOS Debug] Error fetching today\'s meals:', error);
+      console.error('[iOS Debug] Error details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack
+      });
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      allMealsUnsubscribe();
+    };
   }, [userId, calculateDailyTotals]);
 
   // Listen to yesterday's meals (previous date only)
@@ -192,6 +241,8 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
     if (!userId) return;
 
     const yesterdayKey = getYesterdayDateKey();
+    console.log(`[iOS Debug] Setting up yesterday's meals listener for date: ${yesterdayKey}`);
+    
     const yesterdayMealsQuery = query(
       collection(db, 'users', userId, 'meals'),
       where('date', '==', yesterdayKey),
@@ -201,8 +252,17 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
     const unsubscribe = onSnapshot(yesterdayMealsQuery, (snapshot) => {
       const entries: NutritionEntry[] = [];
       
+      console.log(`[iOS Debug] Yesterday's snapshot received with ${snapshot.size} documents`);
+      
       snapshot.forEach((doc) => {
         const data = doc.data();
+        console.log(`[iOS Debug] Yesterday document ${doc.id}:`, { 
+          title: data.title, 
+          date: data.date, 
+          expectedDate: yesterdayKey,
+          createdAt: data.createdAt 
+        });
+        
         // Only include meals from yesterday's date
         if (data.date === yesterdayKey) {
           entries.push({
@@ -216,6 +276,8 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
             createdAt: data.createdAt,
             date: data.date || yesterdayKey,
           });
+        } else {
+          console.log(`[iOS Debug] Skipping yesterday document ${doc.id} - date mismatch: ${data.date} vs ${yesterdayKey}`);
         }
       });
 
@@ -227,9 +289,14 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
         date: yesterdayKey
       }));
       
-      console.log(`Loaded ${entries.length} meals for yesterday (${yesterdayKey})`);
+      console.log(`[iOS Debug] Loaded ${entries.length} meals for yesterday (${yesterdayKey})`);
     }, (error) => {
-      console.error('Error fetching yesterday\'s meals:', error);
+      console.error('[iOS Debug] Error fetching yesterday\'s meals:', error);
+      console.error('[iOS Debug] Error details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack
+      });
     });
 
     return unsubscribe;

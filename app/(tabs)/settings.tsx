@@ -96,7 +96,15 @@ export default function SettingsScreen() {
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        bounces={true}
+        alwaysBounceVertical={false}
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
+        removeClippedSubviews={false}
+      >
         {/* Profile quick info */}
         <View style={styles.profileCard}>
           <View style={styles.profileImagePlaceholder}>
@@ -400,5 +408,8 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: 14,
     color: '#999',
+  },
+  scrollContent: {
+    paddingBottom: 120, // Add padding for the tab bar and extra space
   },
 }); 

@@ -143,7 +143,16 @@ export default function ProfileScreen() {
         <Text style={styles.headerTitle}>Profile</Text>
       </View>
       
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        bounces={true}
+        alwaysBounceVertical={false}
+        keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
+        removeClippedSubviews={false}
+      >
         {/* User Info Section */}
         <View style={styles.userInfoSection}>
           <View style={styles.avatarContainer}>
@@ -234,7 +243,7 @@ export default function ProfileScreen() {
                   <Ionicons name="flame" size={24} color={getNutritionColor('calories')} />
                   <Text style={styles.nutritionLabel}>Calories</Text>
                 </View>
-                <Text style={[styles.nutritionValue, { color: '#FF0000' }]}>{nutritionPlan.calories}</Text>
+                <Text style={[styles.nutritionValue, { color: '#000' }]}>{nutritionPlan.calories}</Text>
                 <Text style={styles.nutritionUnit}>kcal</Text>
               </View>
               <View style={[styles.nutritionCard, { borderLeftColor: getNutritionColor('protein') }]}>
@@ -283,18 +292,46 @@ export default function ProfileScreen() {
         <View style={styles.progressSection}>
           <Text style={styles.sectionTitle}>Progress Tracking</Text>
           
-          {/* Streak Counter */}
-          <View style={styles.streakCard}>
-            <View style={styles.streakHeader}>
-              <Text style={styles.streakEmoji}>🔥</Text>
-              <Text style={styles.streakTitle}>Current Streak</Text>
-            </View>
-            <Text style={styles.streakCount}>{streakCount} Days</Text>
-            <Text style={styles.streakStatus}>
-              {streakBroken ? 'Streak broken - start fresh!' : 
-               streakAtRisk ? 'Keep going, don\'t break the streak!' : 
-               'Amazing consistency!'}
+          {/* Enhanced Streak Section */}
+          <View style={styles.streakMainCard}>
+            <Text style={styles.streakMainTitle}>
+              You have a Streak going for 🔥 <Text style={styles.streakHighlight}>{streakCount}</Text> days
             </Text>
+            <Text style={styles.streakDescription}>
+              A Streak unlocks when you log your meals on consecutive days. Keep tracking to upgrade your Streak badge. 
+              <Text style={styles.learnMoreLink}> Learn more</Text>
+            </Text>
+          </View>
+
+          {/* Streak Progression Badges */}
+          <View style={styles.streakBadgesSection}>
+            <Text style={styles.badgesTitle}>Streak Badges</Text>
+            <View style={styles.badgesContainer}>
+              <View style={styles.badgeItem}>
+                <Text style={[styles.badgeEmoji, streakCount >= 3 && styles.badge3d]}>🔥</Text>
+                <Text style={[styles.badgeText, streakCount >= 3 && styles.badgeText3d]}>3d</Text>
+              </View>
+              <View style={styles.badgeConnector} />
+              <View style={styles.badgeItem}>
+                <Text style={[styles.badgeEmoji, streakCount >= 10 && styles.badge10d]}>🔥</Text>
+                <Text style={[styles.badgeText, streakCount >= 10 && styles.badgeText10d]}>10d</Text>
+              </View>
+              <View style={styles.badgeConnector} />
+              <View style={styles.badgeItem}>
+                <Text style={[styles.badgeEmoji, streakCount >= 30 && styles.badge30d]}>🔥</Text>
+                <Text style={[styles.badgeText, streakCount >= 30 && styles.badgeText30d]}>30d</Text>
+              </View>
+              <View style={styles.badgeConnector} />
+              <View style={styles.badgeItem}>
+                <Text style={[styles.badgeEmoji, streakCount >= 100 && styles.badge100d]}>🔥</Text>
+                <Text style={[styles.badgeText, streakCount >= 100 && styles.badgeText100d]}>100d</Text>
+              </View>
+              <View style={styles.badgeConnector} />
+              <View style={styles.badgeItem}>
+                <Text style={[styles.badgeEmoji, streakCount >= 200 && styles.badge200d]}>🔥</Text>
+                <Text style={[styles.badgeText, streakCount >= 200 && styles.badgeText200d]}>200d</Text>
+              </View>
+            </View>
           </View>
 
           {/* Current Reward */}
@@ -577,37 +614,73 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
   },
-  streakCard: {
+  streakMainCard: {
     backgroundColor: '#f8f9fa',
-    padding: 16,
+    padding: 20,
     borderRadius: 12,
-    alignItems: 'center',
     marginBottom: 16,
-  },
-  streakHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  streakEmoji: {
-    fontSize: 24,
-    marginRight: 8,
-  },
-  streakTitle: {
-    fontSize: 16,
+  streakMainTitle: {
+    fontSize: 20,
     fontWeight: '600',
     color: '#000',
-  },
-  streakCount: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#000',
+    textAlign: 'center',
     marginBottom: 8,
+    lineHeight: 28,
   },
-  streakStatus: {
+  streakHighlight: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FF0000',
+  },
+  streakDescription: {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  learnMoreLink: {
+    color: '#007BFF',
+    textDecorationLine: 'underline',
+  },
+  streakBadgesSection: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  badgesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  badgesContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  badgeItem: {
+    alignItems: 'center',
+  },
+  badgeEmoji: {
+    fontSize: 24,
+    marginBottom: 4,
+    opacity: 0.3,
+    color: '#9CA3AF',
+  },
+  badgeText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    opacity: 0.3,
+  },
+  badgeConnector: {
+    width: 1,
+    height: '100%',
+    backgroundColor: '#E5E7EB',
   },
   rewardCard: {
     backgroundColor: '#f8f9fa',
@@ -690,6 +763,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
+  },
+  badge3d: {
+    opacity: 1,
+    color: '#FFD700', // Gold
+  },
+  badge10d: {
+    opacity: 1,
+    color: '#FF9800', // Orange
+  },
+  badge30d: {
+    opacity: 1,
+    color: '#F44336', // Red
+  },
+  badge100d: {
+    opacity: 1,
+    color: '#E91E63', // Pink
+  },
+  badge200d: {
+    opacity: 1,
+    color: '#9C27B0', // Purple
+  },
+  badgeText3d: {
+    opacity: 1,
+    color: '#FFD700',
+    fontWeight: '600',
+  },
+  badgeText10d: {
+    opacity: 1,
+    color: '#FF9800',
+    fontWeight: '600',
+  },
+  badgeText30d: {
+    opacity: 1,
+    color: '#F44336',
+    fontWeight: '600',
+  },
+  badgeText100d: {
+    opacity: 1,
+    color: '#E91E63',
+    fontWeight: '600',
+  },
+  badgeText200d: {
+    opacity: 1,
+    color: '#9C27B0',
+    fontWeight: '600',
+  },
+  scrollContent: {
+    paddingBottom: 120, // Add padding for the tab bar and extra space
   },
 });
 

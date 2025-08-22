@@ -11,6 +11,7 @@ export default function ActionDialogLayout() {
         gestureDirection: 'vertical',
       }}
     >
+      <Stack.Screen name="scan" />
       <Stack.Screen name="scanResults" />
       <Stack.Screen name="fixResults" />
     </Stack>

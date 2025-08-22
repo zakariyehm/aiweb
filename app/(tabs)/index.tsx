@@ -95,13 +95,24 @@ export default function HomeScreen() {
   } = useDailyNutrition(uid, selectedTab);
   const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(uid);
 
+  // Debug logging for iOS
+  useEffect(() => {
+    console.log('[iOS Debug] Home screen data:', {
+      selectedTab,
+      todayDataLength: todayData.recentlyEaten.length,
+      yesterdayDataLength: yesterdayData.recentlyEaten.length,
+      todayData: todayData.recentlyEaten.map(m => ({ id: m.id, title: m.title, date: m.date })),
+      yesterdayData: yesterdayData.recentlyEaten.map(m => ({ id: m.id, title: m.title, date: m.date }))
+    });
+  }, [selectedTab, todayData, yesterdayData]);
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header and tabs */}
       <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
         <View style={styles.headerLeft}>
-          <FontAwesome name="apple" size={24} color="#000" />
-          <Text style={styles.appName}>Cal AI</Text>
+          <Image source={require('@/assets/images/pnglogo.png')} style={styles.logoImage} />
+          <Text style={styles.appName}>Nutro AI</Text>
         </View>
         <View style={styles.headerRight}>
           <View style={[
@@ -301,6 +312,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  logoImage: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
   },
   appName: {
     fontSize: 24,

@@ -1,28 +1,18 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { Tabs, router } from 'expo-router';
-import React, { useState } from 'react';
-import { Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { Platform, TouchableOpacity, View } from 'react-native';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const [isActionOpen, setIsActionOpen] = useState(false);
 
   const openScan = () => {
-    setIsActionOpen(false);
     try { router.push('/actionDialog/scan'); } catch {}
   };
 
-  const openUpload = () => {
-    setIsActionOpen(false);
-    try { router.push('/actionDialog/upload'); } catch {}
-  };
 
-  const openSaved = () => {
-    setIsActionOpen(false);
-    try { router.push('/actionDialog/saved'); } catch {}
-  };
 
   return (
     <>
@@ -58,7 +48,7 @@ export default function TabLayout() {
           tabBarLabel: () => null,
           // Prevent navigation to a real screen; use dialog instead
           tabBarButton: (props) => (
-            <TouchableOpacity onPress={() => setIsActionOpen(true)} activeOpacity={0.8} style={props.style}> 
+            <TouchableOpacity onPress={openScan} activeOpacity={0.8} style={props.style}> 
               <View
                 style={{
                   backgroundColor: '#2E2E2E',
@@ -106,107 +96,8 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-
-    <Modal visible={isActionOpen} transparent animationType="none" onRequestClose={() => setIsActionOpen(false)}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <View style={styles.sheetHandle} />
-          <TouchableOpacity style={styles.actionItem} onPress={openScan}>
-            <View style={styles.actionIcon}>
-              <FontAwesome name="camera" size={18} color="#111" />
-            </View>
-            <View style={styles.actionTextContainer}>
-              <Text style={styles.actionTitle}>Scan</Text>
-              <Text style={styles.actionDescription}>Use your camera to scan a meal instantly.</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionItem} onPress={openUpload}>
-            <View style={styles.actionIcon}>
-              <FontAwesome name="upload" size={18} color="#111" />
-            </View>
-            <View style={styles.actionTextContainer}>
-              <Text style={styles.actionTitle}>Upload</Text>
-              <Text style={styles.actionDescription}>Choose a photo from gallery for analysis.</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionItem} onPress={openSaved}>
-            <View style={styles.actionIcon}>
-              <FontAwesome name="bookmark" size={18} color="#111" />
-            </View>
-            <View style={styles.actionTextContainer}>
-              <Text style={styles.actionTitle}>Food Saved</Text>
-              <Text style={styles.actionDescription}>Quickly access meals you've saved.</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelButton} onPress={() => setIsActionOpen(false)}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
     </>
   );
 }
 
-const styles = StyleSheet.create({
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
-    minHeight: 260,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E5E7EB',
-    marginBottom: 12,
-  },
-  actionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  actionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  actionTextContainer: {
-    flex: 1,
-  },
-  actionTitle: {
-    color: '#111',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  actionDescription: {
-    color: '#6B7280',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  cancelButton: {
-    marginTop: 8,
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  cancelText: {
-    color: '#111',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+

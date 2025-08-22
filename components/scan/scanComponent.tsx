@@ -11,11 +11,10 @@ import {
   Dimensions,
   Image,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -169,17 +168,7 @@ export default function ScanScreen(): React.ReactElement {
 
   return (
     <View style={styles.container}>
-      {/* Close button for modal */}
-      <SafeAreaView pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-        <View style={styles.modalHeader}>
-          <Pressable
-            onPress={() => router.back()}
-            style={styles.closeButton}
-          >
-            <Ionicons name="close" size={24} color="#fff" />
-          </Pressable>
-        </View>
-      </SafeAreaView>
+
 
       {phase !== 'idle' && photoUri ? (
         <Image source={{ uri: photoUri }} style={styles.capturedImage} resizeMode="cover" />
@@ -236,23 +225,7 @@ export default function ScanScreen(): React.ReactElement {
         </View>
       )}
 
-      {phase !== 'idle' && (
-        <SafeAreaView pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-          <View style={styles.headerBar}>
-            <Pressable
-              onPress={() => {
-                setAnalysis(null);
-                setPhotoUri(null);
-                setPhase('idle');
-                router.back();
-              }}
-              style={styles.backButton}
-            >
-              <Ionicons name="chevron-back" size={20} color="#fff" />
-            </Pressable>
-          </View>
-        </SafeAreaView>
-      )}
+
 
       {phase === 'idle' && (
         <Pressable style={StyleSheet.absoluteFill} onPress={handleOpenCamera} />
@@ -275,38 +248,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.25)',
   },
-  headerBar: {
-    paddingHorizontal: 12,
-    paddingTop: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 12,
-    paddingTop: 6,
-    zIndex: 1,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   loadingContainer: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',

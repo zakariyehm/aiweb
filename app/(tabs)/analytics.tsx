@@ -1,15 +1,40 @@
 import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
-import { arrayUnion, doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import { arrayUnion, collection, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function AnalyticsScreen() {
-  const [selectedTimeframe, setSelectedTimeframe] = useState('90 Days');
-  const insets = useSafeAreaInsets();
+interface WeeklyNutrition {
+  weekStart: string;
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  daysTracked: number;
+  isRestWeek: boolean;
+  healthScore: number;
+  weekLabel: string;
+}
 
-  const timeframes = ['90 Days', '6 Months', '1 Year', 'All time'];
+interface DailyNutrition {
+  date: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export default function AnalyticsScreen() {
+  const [selectedTimeframe, setSelectedTimeframe] = useState('This Week');
+  const insets = useSafeAreaInsets();
+  const [currentWeek, setCurrentWeek] = useState<WeeklyNutrition | null>(null);
+  const [weeklyHistory, setWeeklyHistory] = useState<WeeklyNutrition[]>([]);
+  const [dailyData, setDailyData] = useState<DailyNutrition[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const timeframes = ['This Week', 'Last Week', '2 Weeks Ago', '3 Weeks Ago'];
 
   const BMICategories = [
     { label: 'Underweight', color: '#007AFF', range: [0, 18.5] },
@@ -21,6 +46,12 @@ export default function AnalyticsScreen() {
   const [currentWeight, setCurrentWeight] = useState<number>(0);
   const [goalWeight, setGoalWeight] = useState<number>(0);
   const [heightCm, setHeightCm] = useState<number>(0);
+  const [userPlan, setUserPlan] = useState<{
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  } | null>(null);
 
   const currentBMI = useMemo(() => {
     if (!currentWeight || !heightCm) return 0;
@@ -34,9 +65,252 @@ export default function AnalyticsScreen() {
 
   const bmiCategory = getBMICategory(currentBMI);
 
+  // Get week start date (Monday)
+  const getWeekStart = (date: Date = new Date()): string => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+    const monday = new Date(d.setDate(diff));
+    const year = monday.getFullYear();
+    const month = String(monday.getMonth() + 1).padStart(2, '0');
+    const dayOfMonth = String(monday.getDate()).padStart(2, '0');
+    return `${year}-${month}-${dayOfMonth}`;
+  };
+
+  // Get week end date (Sunday)
+  const getWeekEnd = (date: Date = new Date()): string => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? 0 : 7); // Adjust for Sunday
+    const sunday = new Date(d.setDate(diff));
+    const year = sunday.getFullYear();
+    const month = String(sunday.getMonth() + 1).padStart(2, '0');
+    const dayOfMonth = String(sunday.getDate()).padStart(2, '0');
+    return `${year}-${month}-${dayOfMonth}`;
+  };
+
+  // Get readable week label
+  const getWeekLabel = (weekStart: string): string => {
+    const date = new Date(weekStart);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 7) return 'This Week';
+    if (diffDays <= 14) return 'Last Week';
+    if (diffDays <= 21) return '2 Weeks Ago';
+    return '3 Weeks Ago';
+  };
+
+  // Calculate health score based on nutrition balance and consistency
+  const calculateHealthScore = (
+    totalCalories: number,
+    totalProtein: number,
+    totalCarbs: number,
+    totalFat: number,
+    daysTracked: number,
+    targetCalories: number,
+    targetProtein: number,
+    targetCarbs: number,
+    targetFat: number
+  ): number => {
+    if (daysTracked === 0) return 0;
+
+    // Calculate daily averages
+    const avgCalories = totalCalories / daysTracked;
+    const avgProtein = totalProtein / daysTracked;
+    const avgCarbs = totalCarbs / daysTracked;
+    const avgFat = totalFat / daysTracked;
+
+    // Calorie balance score (0-25 points)
+    const calorieScore = Math.max(0, 25 - Math.abs(avgCalories - targetCalories) / targetCalories * 25);
+
+    // Protein balance score (0-25 points)
+    const proteinScore = Math.max(0, 25 - Math.abs(avgProtein - targetProtein) / targetProtein * 25);
+
+    // Carbs balance score (0-25 points)
+    const carbsScore = Math.max(0, 25 - Math.abs(avgCarbs - targetCarbs) / targetCarbs * 25);
+
+    // Fat balance score (0-25 points)
+    const fatScore = Math.max(0, 25 - Math.abs(avgFat - targetFat) / targetFat * 25);
+
+    // Consistency bonus (0-10 points)
+    const consistencyBonus = daysTracked >= 7 ? 10 : (daysTracked / 7) * 10;
+
+    const totalScore = calorieScore + proteinScore + carbsScore + fatScore + consistencyBonus;
+    return Math.round(Math.min(100, Math.max(0, totalScore)));
+  };
+
+  // Fetch weekly nutrition data
+  const fetchWeeklyNutrition = async (weekStart: string, weekEnd: string): Promise<WeeklyNutrition> => {
+    if (!auth.currentUser) {
+      return {
+        weekStart,
+        totalCalories: 0,
+        totalProtein: 0,
+        totalCarbs: 0,
+        totalFat: 0,
+        daysTracked: 0,
+        isRestWeek: false,
+        healthScore: 0,
+        weekLabel: getWeekLabel(weekStart)
+      };
+    }
+
+    try {
+      const mealsQuery = query(
+        collection(db, 'users', auth.currentUser.uid, 'meals'),
+        where('date', '>=', weekStart),
+        where('date', '<=', weekEnd),
+        orderBy('date', 'asc')
+      );
+
+      const snapshot = await getDocs(mealsQuery);
+      const meals = snapshot.docs.map(doc => doc.data());
+
+      // Group meals by date to count unique days
+      const uniqueDays = new Set(meals.map(meal => meal.date));
+      const daysTracked = uniqueDays.size;
+
+      // Calculate totals
+      const totals = meals.reduce((acc, meal) => ({
+        calories: acc.calories + (meal.calories || 0),
+        protein: acc.protein + (meal.proteinG || 0),
+        carbs: acc.carbs + (meal.carbsG || 0),
+        fat: acc.fat + (meal.fatG || 0),
+      }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+      // Determine if this is a rest week (after 7 days of tracking)
+      const isRestWeek = daysTracked === 0;
+
+      // Calculate health score
+      const healthScore = userPlan ? calculateHealthScore(
+        totals.calories,
+        totals.protein,
+        totals.carbs,
+        totals.fat,
+        daysTracked,
+        userPlan.calories * 7,
+        userPlan.protein * 7,
+        userPlan.carbs * 7,
+        userPlan.fat * 7
+      ) : 0;
+
+      return {
+        weekStart,
+        totalCalories: totals.calories,
+        totalProtein: totals.protein,
+        totalCarbs: totals.carbs,
+        totalFat: totals.fat,
+        daysTracked,
+        isRestWeek,
+        healthScore,
+        weekLabel: getWeekLabel(weekStart)
+      };
+    } catch (error) {
+      console.error('Error fetching weekly nutrition:', error);
+      return {
+        weekStart,
+        totalCalories: 0,
+        totalProtein: 0,
+        totalCarbs: 0,
+        totalFat: 0,
+        daysTracked: 0,
+        isRestWeek: false,
+        healthScore: 0,
+        weekLabel: getWeekLabel(weekStart)
+      };
+    }
+  };
+
+  // Fetch daily nutrition data for chart
+  const fetchDailyNutrition = async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      const today = new Date();
+      const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+      
+      const mealsQuery = query(
+        collection(db, 'users', auth.currentUser.uid, 'meals'),
+        where('date', '>=', thirtyDaysAgo.toISOString().split('T')[0]),
+        orderBy('date', 'asc')
+      );
+
+      const snapshot = await getDocs(mealsQuery);
+      const meals = snapshot.docs.map(doc => doc.data());
+
+      // Group by date and calculate daily totals
+      const dailyMap = new Map<string, DailyNutrition>();
+      
+      meals.forEach(meal => {
+        const date = meal.date;
+        if (!dailyMap.has(date)) {
+          dailyMap.set(date, {
+            date,
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0
+          });
+        }
+        
+        const daily = dailyMap.get(date)!;
+        daily.calories += meal.calories || 0;
+        daily.protein += meal.proteinG || 0;
+        daily.carbs += meal.carbsG || 0;
+        daily.fat += meal.fatG || 0;
+      });
+
+      const dailyArray = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+      setDailyData(dailyArray);
+    } catch (error) {
+      console.error('Error fetching daily nutrition:', error);
+    }
+  };
+
+  // Load current week data
+  useEffect(() => {
+    const loadCurrentWeek = async () => {
+      const weekStart = getWeekStart();
+      const weekEnd = getWeekEnd();
+      const weekData = await fetchWeeklyNutrition(weekStart, weekEnd);
+      setCurrentWeek(weekData);
+      setLoading(false);
+    };
+
+    loadCurrentWeek();
+  }, [userPlan]);
+
+  // Load weekly history
+  useEffect(() => {
+    const loadWeeklyHistory = async () => {
+      const history: WeeklyNutrition[] = [];
+      
+      // Get last 4 weeks
+      for (let i = 1; i <= 4; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - (i * 7));
+        const weekStart = getWeekStart(date);
+        const weekEnd = getWeekEnd(date);
+        const weekData = await fetchWeeklyNutrition(weekStart, weekEnd);
+        history.push(weekData);
+      }
+      
+      setWeeklyHistory(history);
+    };
+
+    if (auth.currentUser) {
+      loadWeeklyHistory();
+      fetchDailyNutrition();
+    }
+  }, [userPlan]);
+
+  // Load user profile and plan
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
+    
     const ref = doc(db, 'users', user.uid);
     const unsub = onSnapshot(ref, (snap) => {
       const data: any = snap.data() || {};
@@ -44,10 +318,14 @@ export default function AnalyticsScreen() {
       const weight = Number(profile.weight || profile.currentWeight || 0);
       const desired = Number(profile.desiredWeight || data.plan?.desiredWeight || 0);
       const height = Number(profile.height || 0);
+      const plan = data.plan || null;
+      
       if (!isNaN(weight)) setCurrentWeight(weight);
       if (!isNaN(desired)) setGoalWeight(desired);
       if (!isNaN(height)) setHeightCm(height);
+      if (plan) setUserPlan(plan);
     });
+    
     return unsub;
   }, []);
 
@@ -61,6 +339,7 @@ export default function AnalyticsScreen() {
     setGoalInput(String(goalWeight || ''));
     setIsGoalModalOpen(true);
   };
+
   const openLogModal = () => {
     setLogInput(String(currentWeight || ''));
     setIsLogModalOpen(true);
@@ -96,13 +375,209 @@ export default function AnalyticsScreen() {
     }
   };
 
+  // Refresh data
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const weekStart = getWeekStart();
+      const weekEnd = getWeekEnd();
+      const weekData = await fetchWeeklyNutrition(weekStart, weekEnd);
+      setCurrentWeek(weekData);
+      
+      // Reload weekly history
+      const history: WeeklyNutrition[] = [];
+      for (let i = 1; i <= 4; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - (i * 7));
+        const weekStart = getWeekStart(date);
+        const weekEnd = getWeekEnd(date);
+        const weekData = await fetchWeeklyNutrition(weekStart, weekEnd);
+        history.push(weekData);
+      }
+      setWeeklyHistory(history);
+      
+      await fetchDailyNutrition();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Get selected week data based on timeframe
+  const getSelectedWeekData = (): WeeklyNutrition | null => {
+    if (selectedTimeframe === 'This Week') return currentWeek;
+    const index = timeframes.indexOf(selectedTimeframe) - 1;
+    return index >= 0 && index < weeklyHistory.length ? weeklyHistory[index] : null;
+  };
+
+  const selectedWeekData = getSelectedWeekData();
+
+  // Calculate goal achievement percentage
+  const getGoalAchievement = (): number => {
+    if (!selectedWeekData || !userPlan) return 0;
+    const targetCalories = userPlan.calories * 7;
+    if (targetCalories === 0) return 0;
+    return Math.min(100, Math.round((selectedWeekData.totalCalories / targetCalories) * 100));
+  };
+
+  // Get health score color
+  const getHealthScoreColor = (score: number): string => {
+    if (score >= 80) return '#34C759';
+    if (score >= 60) return '#FF9500';
+    if (score >= 40) return '#FF6B35';
+    return '#FF3B30';
+  };
+
+  // Get health score emoji
+  const getHealthScoreEmoji = (score: number): string => {
+    if (score >= 80) return '🌟';
+    if (score >= 60) return '👍';
+    if (score >= 40) return '😐';
+    return '😔';
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#772CE8" />
+        <Text style={styles.loadingText}>Loading your nutrition data...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
-        <Text style={styles.headerTitle}>Overview</Text>
+        <Text style={styles.headerTitle}>Analytics</Text>
+        <TouchableOpacity style={styles.refreshButton} onPress={onRefresh} disabled={refreshing}>
+          <FontAwesome name="refresh" size={20} color="#772CE8" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#772CE8']} />
+        }
+        contentContainerStyle={styles.scrollContent}
+        bounces={true}
+        alwaysBounceVertical={false}
+        scrollEventThrottle={16}
+      >
+        {/* Weekly Nutrition Overview */}
+        <View style={styles.section}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.sectionTitle}>Weekly Nutrition</Text>
+            <View style={styles.goalAchievement}>
+              <Text style={styles.progressPercentage}>
+                {getGoalAchievement()}% Goal achieved
+              </Text>
+              {userPlan && (
+                <Text style={styles.targetCalories}>
+                  Target: {userPlan.calories * 7} cal/week
+                </Text>
+              )}
+            </View>
+          </View>
+          
+          <View style={styles.timeframeTabs}>
+            {timeframes.map(timeframe => (
+              <TouchableOpacity 
+                key={timeframe} 
+                style={[styles.timeframeTab, selectedTimeframe === timeframe && styles.timeframeTabActive]} 
+                onPress={() => setSelectedTimeframe(timeframe)}
+              >
+                <Text style={[styles.timeframeTabText, selectedTimeframe === timeframe && styles.timeframeTabTextActive]}>
+                  {timeframe}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {selectedWeekData && (
+            <View style={styles.weeklyStats}>
+              <View style={styles.statRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{selectedWeekData.totalCalories.toFixed(0)}</Text>
+                  <Text style={styles.statLabel}>Total Calories</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{selectedWeekData.daysTracked}</Text>
+                  <Text style={styles.statLabel}>Days Tracked</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <View style={styles.healthScoreContainer}>
+                    <Text style={styles.healthScoreEmoji}>{getHealthScoreEmoji(selectedWeekData.healthScore)}</Text>
+                    <Text style={[styles.statValue, { color: getHealthScoreColor(selectedWeekData.healthScore) }]}>
+                      {selectedWeekData.healthScore}
+                    </Text>
+                  </View>
+                  <Text style={styles.statLabel}>Health Score</Text>
+                </View>
+              </View>
+
+              {selectedWeekData.isRestWeek ? (
+                <View style={styles.restWeekCard}>
+                  <FontAwesome name="bed" size={24} color="#666" />
+                  <Text style={styles.restWeekText}>Rest Week - Take a break from tracking</Text>
+                  <Text style={styles.restWeekSubtext}>Your body needs recovery time</Text>
+                </View>
+              ) : (
+                <View style={styles.macrosBreakdown}>
+                  <Text style={styles.macrosTitle}>Macronutrients Breakdown</Text>
+                  <View style={styles.macroItem}>
+                    <View style={styles.macroHeader}>
+                      <Text style={styles.macroLabel}>Protein</Text>
+                      <Text style={styles.macroValue}>{selectedWeekData.totalProtein.toFixed(1)}g</Text>
+                    </View>
+                    <View style={styles.macroBar}>
+                      <View style={[styles.macroFill, { 
+                        width: `${Math.min(100, (selectedWeekData.totalProtein / (userPlan?.protein || 1) / 7) * 100)}%`,
+                        backgroundColor: '#F97373'
+                      }]} />
+                    </View>
+                    {userPlan && (
+                      <Text style={styles.macroTarget}>Target: {userPlan.protein * 7}g/week</Text>
+                    )}
+                  </View>
+                  <View style={styles.macroItem}>
+                    <View style={styles.macroHeader}>
+                      <Text style={styles.macroLabel}>Carbs</Text>
+                      <Text style={styles.macroValue}>{selectedWeekData.totalCarbs.toFixed(1)}g</Text>
+                    </View>
+                    <View style={styles.macroBar}>
+                      <View style={[styles.macroFill, { 
+                        width: `${Math.min(100, (selectedWeekData.totalCarbs / (userPlan?.carbs || 1) / 7) * 100)}%`,
+                        backgroundColor: '#F59E0B'
+                      }]} />
+                    </View>
+                    {userPlan && (
+                      <Text style={styles.macroTarget}>Target: {userPlan.carbs * 7}g/week</Text>
+                    )}
+                  </View>
+                  <View style={styles.macroItem}>
+                    <View style={styles.macroHeader}>
+                      <Text style={styles.macroLabel}>Fat</Text>
+                      <Text style={styles.macroValue}>{selectedWeekData.totalFat.toFixed(1)}g</Text>
+                    </View>
+                    <View style={styles.macroBar}>
+                      <View style={[styles.macroFill, { 
+                        width: `${Math.min(100, (selectedWeekData.totalFat / (userPlan?.fat || 1) / 7) * 100)}%`,
+                        backgroundColor: '#3B82F6'
+                      }]} />
+                    </View>
+                    {userPlan && (
+                      <Text style={styles.macroTarget}>Target: {userPlan.fat * 7}g/week</Text>
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* Weight Goal Section */}
         <View style={styles.section}>
           <View style={styles.weightHeader}>
             <Text style={styles.sectionTitle}>Weight Goal</Text>
@@ -113,6 +588,13 @@ export default function AnalyticsScreen() {
           <Text style={styles.weightValue}>{goalWeight} kg</Text>
           <Text style={styles.sectionTitle}>Current Weight</Text>
           <Text style={styles.weightValue}>{currentWeight} kg</Text>
+          {goalWeight > 0 && currentWeight > 0 && (
+            <View style={styles.weightProgress}>
+              <Text style={styles.weightProgressText}>
+                {goalWeight > currentWeight ? 'Gain' : 'Lose'}: {Math.abs(goalWeight - currentWeight).toFixed(1)} kg
+              </Text>
+            </View>
+          )}
           <View style={styles.infoCard}>
             <Text style={styles.infoText}>Try to update once a week so we can adjust your plan.</Text>
           </View>
@@ -121,6 +603,7 @@ export default function AnalyticsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* BMI Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your BMI</Text>
           <View style={styles.bmiCard}>
@@ -151,42 +634,50 @@ export default function AnalyticsScreen() {
           </View>
         </View>
 
+        {/* Weekly Progress Chart */}
         <View style={styles.section}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.sectionTitle}>Goal Progress</Text>
-            <Text style={styles.progressPercentage}>0.0% Goal achieved</Text>
-          </View>
-          <View style={styles.timeframeTabs}>
-            {timeframes.map(timeframe => (
-              <TouchableOpacity key={timeframe} style={[styles.timeframeTab, selectedTimeframe === timeframe && styles.timeframeTabActive]} onPress={() => setSelectedTimeframe(timeframe)}>
-                <Text style={[styles.timeframeTabText, selectedTimeframe === timeframe && styles.timeframeTabTextActive]}>
-                  {timeframe}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Text style={styles.sectionTitle}>Weekly Progress Trend</Text>
           <View style={styles.chartContainer}>
             <View style={styles.chartYAxis}>
-              <Text style={styles.chartYLabel}>64 kg</Text>
-              <Text style={styles.chartYLabel}>63.6 kg</Text>
-              <Text style={styles.chartYLabel}>63.2 kg</Text>
-              <Text style={styles.chartYLabel}>62.8 kg</Text>
+              <Text style={styles.chartYLabel}>100%</Text>
+              <Text style={styles.chartYLabel}>75%</Text>
+              <Text style={styles.chartYLabel}>50%</Text>
+              <Text style={styles.chartYLabel}>25%</Text>
+              <Text style={styles.chartYLabel}>0%</Text>
             </View>
             <View style={styles.chartArea}>
               <View style={styles.chartGrid}>
-                {[0, 1, 2, 3].map(i => (
+                {[0, 1, 2, 3, 4].map(i => (
                   <View key={i} style={styles.chartGridLine} />
                 ))}
               </View>
-              <View style={styles.chartDataPoint}>
-                <View style={styles.dataPoint} />
-                <Text style={styles.dataPointValue}>63.0</Text>
+              <View style={styles.chartDataPoints}>
+                {weeklyHistory.slice().reverse().map((week, index) => (
+                  <View key={week.weekStart} style={styles.chartDataPoint}>
+                    <View style={[styles.dataPoint, { 
+                      backgroundColor: getHealthScoreColor(week.healthScore)
+                    }]} />
+                    <Text style={styles.dataPointValue}>{week.healthScore}%</Text>
+                    <Text style={styles.dataPointLabel}>{week.weekLabel}</Text>
+                  </View>
+                ))}
               </View>
             </View>
           </View>
+          {weeklyHistory.length === 0 && (
+            <View style={styles.emptyChart}>
+              <FontAwesome name="bar-chart" size={48} color="#ccc" />
+              <Text style={styles.emptyChartText}>No data available yet</Text>
+              <Text style={styles.emptyChartSubtext}>Start tracking your meals to see progress</Text>
+            </View>
+          )}
         </View>
+
+        {/* Bottom Spacer for iOS */}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
+      {/* Goal Weight Modal */}
       <Modal visible={isGoalModalOpen} transparent animationType="slide" onRequestClose={() => setIsGoalModalOpen(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -207,6 +698,7 @@ export default function AnalyticsScreen() {
         </View>
       </Modal>
 
+      {/* Log Weight Modal */}
       <Modal visible={isLogModalOpen} transparent animationType="slide" onRequestClose={() => setIsLogModalOpen(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
@@ -232,8 +724,25 @@ export default function AnalyticsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { paddingHorizontal: 20, paddingVertical: 15 },
+  scrollContent: {
+    paddingBottom: 100, // Extra padding for iOS scroll
+  },
+  header: { 
+    paddingHorizontal: 20, 
+    paddingVertical: 15, 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center'
+  },
   headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#000' },
+  refreshButton: {
+    padding: 8,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
   section: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
@@ -246,11 +755,79 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  weightHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  progressHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginBottom: 16,
+    flexWrap: 'wrap',
+    gap: 8
+  },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
+  progressPercentage: { fontSize: 14, color: '#666' },
+  goalAchievement: { alignItems: 'flex-end' },
+  targetCalories: { fontSize: 12, color: '#666', marginTop: 4 },
+  timeframeTabs: { flexDirection: 'row', marginBottom: 16, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 },
+  timeframeTab: { flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, alignItems: 'center' },
+  timeframeTabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  timeframeTabText: { fontSize: 14, color: '#666', fontWeight: '500' },
+  timeframeTabTextActive: { color: '#000', fontWeight: '600' },
+  weeklyStats: { marginTop: 16 },
+  statRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  statItem: { alignItems: 'center', flex: 1 },
+  statValue: { fontSize: 24, fontWeight: 'bold', color: '#000', marginBottom: 4 },
+  statLabel: { fontSize: 12, color: '#666', textAlign: 'center' },
+  healthScoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  healthScoreEmoji: { fontSize: 20 },
+  restWeekCard: { 
+    backgroundColor: '#f8f9fa', 
+    padding: 20, 
+    borderRadius: 8, 
+    alignItems: 'center',
+    flexDirection: 'column',
+    gap: 8
+  },
+  restWeekText: { fontSize: 16, color: '#666', textAlign: 'center', fontWeight: '500' },
+  restWeekSubtext: { fontSize: 12, color: '#999', textAlign: 'center' },
+  macrosBreakdown: { marginTop: 16 },
+  macrosTitle: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 12 },
+  macroItem: { marginBottom: 12 },
+  macroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  macroLabel: { fontSize: 12, color: '#666' },
+  macroValue: { fontSize: 14, fontWeight: 'bold', color: '#000' },
+  macroBar: { 
+    height: 8, 
+    backgroundColor: '#f0f0f0', 
+    borderRadius: 4, 
+    marginBottom: 4,
+    overflow: 'hidden'
+  },
+  macroFill: { height: '100%', borderRadius: 4 },
+  macroTarget: { fontSize: 12, color: '#666', marginTop: 4 },
+  weightHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   updateButton: { backgroundColor: '#772CE8', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   updateButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   weightValue: { fontSize: 32, fontWeight: 'bold', color: '#000', marginBottom: 16 },
+  weightProgress: {
+    backgroundColor: '#f0f0f0',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  weightProgressText: {
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+  },
   infoCard: { backgroundColor: '#f8f9fa', padding: 16, borderRadius: 8, marginBottom: 16 },
   infoText: { fontSize: 14, color: '#666', lineHeight: 20 },
   logWeightButton: { backgroundColor: '#333', paddingVertical: 16, borderRadius: 8, alignItems: 'center' },
@@ -269,22 +846,102 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendColor: { width: 12, height: 12, borderRadius: 6 },
   legendText: { fontSize: 12, color: '#666' },
-  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  progressPercentage: { fontSize: 14, color: '#666' },
-  timeframeTabs: { flexDirection: 'row', marginBottom: 16, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 },
-  timeframeTab: { flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, alignItems: 'center' },
-  timeframeTabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  timeframeTabText: { fontSize: 14, color: '#666', fontWeight: '500' },
-  timeframeTabTextActive: { color: '#000', fontWeight: '600' },
-  chartContainer: { flexDirection: 'row', height: 200 },
-  chartYAxis: { width: 60, justifyContent: 'space-between', paddingRight: 12 },
-  chartYLabel: { fontSize: 12, color: '#666', textAlign: 'right' },
-  chartArea: { flex: 1, position: 'relative' },
-  chartGrid: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  chartGridLine: { height: 1, backgroundColor: '#f0f0f0', marginTop: 50 },
-  chartDataPoint: { position: 'absolute', top: '50%', left: '20%', alignItems: 'center' },
-  dataPoint: { width: 8, height: 8, backgroundColor: '#007AFF', borderRadius: 4, marginBottom: 4 },
-  dataPointValue: { fontSize: 12, color: '#007AFF', fontWeight: '600' },
+  chartContainer: { 
+    flexDirection: 'row', 
+    height: 200,
+    marginTop: 16,
+    backgroundColor: '#fafafa',
+    borderRadius: 8,
+    padding: 16,
+  },
+  chartYAxis: { 
+    width: 60, 
+    justifyContent: 'space-between', 
+    paddingRight: 12,
+    paddingVertical: 8,
+  },
+  chartYLabel: { 
+    fontSize: 12, 
+    color: '#666', 
+    textAlign: 'right',
+    height: 32,
+    lineHeight: 32,
+  },
+  chartArea: { 
+    flex: 1, 
+    position: 'relative',
+    paddingVertical: 8,
+  },
+  chartGrid: { 
+    position: 'absolute', 
+    top: 8, 
+    left: 0, 
+    right: 0, 
+    bottom: 8,
+  },
+  chartGridLine: { 
+    height: 1, 
+    backgroundColor: '#f0f0f0', 
+    marginTop: 32,
+  },
+  chartDataPoints: { 
+    position: 'absolute', 
+    top: 8, 
+    left: 0, 
+    right: 0, 
+    bottom: 8, 
+    flexDirection: 'row', 
+    justifyContent: 'space-around', 
+    alignItems: 'flex-end', 
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+  },
+  chartDataPoint: { 
+    alignItems: 'center',
+    minWidth: 40,
+  },
+  dataPoint: { 
+    width: 12, 
+    height: 12, 
+    borderRadius: 6, 
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  dataPointValue: { 
+    fontSize: 11, 
+    color: '#333', 
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  dataPointLabel: { 
+    fontSize: 10, 
+    color: '#666', 
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  emptyChart: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyChartText: {
+    fontSize: 18,
+    color: '#666',
+    marginTop: 10,
+  },
+  emptyChartSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 4,
+  },
+  bottomSpacer: {
+    height: 100, // Extra space at bottom for iOS
+  },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16 },
   modalTitle: { fontSize: 18, fontWeight: '800', color: '#000', marginBottom: 8 },
@@ -297,5 +954,6 @@ const styles = StyleSheet.create({
   modalPrimary: { backgroundColor: '#000', paddingVertical: 12, paddingHorizontal: 18, borderRadius: 20, width: '48%', alignItems: 'center' },
   modalPrimaryText: { color: '#fff', fontWeight: '700' },
 });
+
 
 
