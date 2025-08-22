@@ -15,7 +15,9 @@ export default function ScanResultsModal() {
   const { markDone } = useStreak(uid);
   const { addFoodEntry } = useDailyNutrition(uid);
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const spinAnim = useRef(new Animated.Value(0)).current;
   const [formattedTime, setFormattedTime] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
   
   // Helper function to format nutritional values to one decimal place maximum
   const formatNutritionValue = (value: number): string => {
@@ -79,12 +81,30 @@ export default function ScanResultsModal() {
     }
   }, []);
 
+  // Spin animation for loading spinner
+  useEffect(() => {
+    if (isLoading) {
+      const spinAnimation = Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      );
+      spinAnimation.start();
+      return () => spinAnimation.stop();
+    }
+  }, [isLoading, spinAnim]);
+
   const handleClose = () => {
     // Go back to camera and reopen it
     router.replace({ pathname: '/actionDialog/scan', params: { reopen: '1' } });
   };
 
   const handleDone = async () => {
+    if (isLoading) return; // Prevent double-clicking
+    
+    setIsLoading(true);
     try {
       // Add food entry to daily nutrition tracking
       if (uid) {
@@ -98,7 +118,13 @@ export default function ScanResultsModal() {
         });
       }
       await markDone();
-    } catch {}
+    } catch (error) {
+      console.error('Error in handleDone:', error);
+      setIsLoading(false);
+      return;
+    }
+    
+    // Navigate to home screen
     router.replace('/(tabs)');
   };
 
@@ -232,12 +258,35 @@ export default function ScanResultsModal() {
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.doneButton} 
+              style={[
+                styles.doneButton, 
+                isLoading && styles.doneButtonDisabled
+              ]} 
               onPress={handleDone}
+              disabled={isLoading}
               accessibilityRole="button"
               accessibilityLabel="Return to home screen"
             >
-              <Text style={styles.doneButtonText}>Done</Text>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <Animated.View 
+                    style={[
+                      styles.spinner,
+                      {
+                        transform: [{
+                          rotate: spinAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ['0deg', '360deg']
+                          })
+                        }]
+                      }
+                    ]} 
+                  />
+                  <Text style={styles.doneButtonText}>Saving...</Text>
+                </View>
+              ) : (
+                <Text style={styles.doneButtonText}>Done</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -471,9 +520,27 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  doneButtonDisabled: {
+    opacity: 0.7,
+  },
   doneButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  spinner: {
+    width: 16,
+    height: 16,
+    borderWidth: 2,
+    borderColor: '#fff',
+    borderTopColor: 'transparent',
+    borderRadius: 10,
+    // animation: 'spin 1s linear infinite', // This line is removed as per the edit hint
   },
 });

@@ -45,21 +45,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="analytics"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <View style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              backgroundColor: color === '#A78BFA' ? '#6D28D9' : 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <FontAwesome name="user" size={18} color={color === '#A78BFA' ? '#fff' : color} />
-            </View>
-          ),
+          title: 'Analytics',
+          tabBarIcon: ({ color }) => <FontAwesome name="line-chart" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -92,10 +81,21 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="analytics"
+        name="profile"
         options={{
-          title: 'Analytics',
-          tabBarIcon: ({ color }) => <FontAwesome name="line-chart" size={22} color={color} />,
+          title: 'Profile',
+          tabBarIcon: ({ color }) => (
+            <View style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: color === '#A78BFA' ? '#6D28D9' : 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <FontAwesome name="user" size={18} color={color === '#A78BFA' ? '#fff' : color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen

@@ -1,52 +1,344 @@
-import { useAuth } from '@/hooks/useAuth';
-import { FontAwesome } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import useStreak from '@/hooks/useStreak';
+import { auth, db } from '@/lib/firebase';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { doc, getDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+interface UserProfile {
+  firstName?: string;
+  age?: string;
+  height?: string;
+  weight?: string;
+  gender?: string;
+  workouts?: string;
+  goal?: string;
+  desiredWeight?: string;
+  specificGoal?: string;
+  email?: string;
+}
+
+interface NutritionPlan {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  bmr: number;
+  tdee: number;
+  goal: string;
+  currentWeight: number;
+  desiredWeight: number;
+}
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { logout } = useAuth();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Get streak data from home screen
+  const uid = auth.currentUser?.uid;
+  const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(uid);
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/onboarding/splash');
-          },
-        },
-      ]
-    );
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setUserProfile(data.profile || {});
+          setNutritionPlan(data.plan || null);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    <View style={[styles.container, { paddingTop: insets.top }]}> 
-      <Text style={styles.title}>Profile</Text>
-      
-      {/* User Info */}
-      <View style={styles.userInfo}>
-        <View style={styles.avatar}>
-          <FontAwesome name="user" size={40} color="#007AFF" />
-        </View>
-        <Text style={styles.userEmail}>User</Text>
-      </View>
+  const getGoalEmoji = (goal: string) => {
+    switch (goal) {
+      case 'Lose Weight': return '📉';
+      case 'Gain Weight': return '📈';
+      case 'Maintain': return '⚖️';
+      default: return '🎯';
+    }
+  };
 
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <FontAwesome name="sign-out" size={20} color="#E53935" />
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
+  const getWorkoutEmoji = (workouts: string) => {
+    switch (workouts) {
+      case '0-2 times': return '🛋️';
+      case '3-5 times': return '💪';
+      case '6+ times': return '🏃‍♂️';
+      default: return '🏋️‍♂️';
+    }
+  };
+
+  const getDietEmoji = (diet: string) => {
+    switch (diet) {
+      case 'Vegetarian': return '🥦';
+      case 'Vegan': return '🌱';
+      case 'Keto': return '🥓';
+      case 'Paleo': return '🍖';
+      case 'Mediterranean': return '🫒';
+      default: return '🍽️';
+    }
+  };
+
+  const getNutritionColor = (type: string) => {
+    switch (type) {
+      case 'calories': return '#FF6B6B';
+      case 'protein': return '#4ECDC4';
+      case 'carbs': return '#45B7D1';
+      case 'fat': return '#96CEB4';
+      default: return '#FF6B6B';
+    }
+  };
+
+  // Streak rewards system
+  const getStreakReward = (days: number) => {
+    if (days >= 180) return { emoji: '🏅', title: 'Legendary Badge', message: '6 MONTHS streak! You earned a legendary badge.' };
+    if (days >= 150) return { emoji: '🌟', title: 'Shining Star', message: '5 months streak! You\'re inspiring others.' };
+    if (days >= 120) return { emoji: '🥉', title: 'Bronze Medal', message: '4 months streak! You\'re unstoppable.' };
+    if (days >= 90) return { emoji: '🥇', title: 'Gold Medal', message: '3 months streak! You\'re among the top users.' };
+    if (days >= 60) return { emoji: '🏆', title: 'Trophy', message: '2 months streak! This is champion level.' };
+    if (days >= 30) return { emoji: '💕', title: 'Heart', message: '1 month streak! You\'re building a healthy habit.' };
+    if (days >= 14) return { emoji: '😍', title: 'Love Eyes', message: '2 weeks strong, we love your commitment.' };
+    if (days >= 7) return { emoji: '🤪', title: 'Goofy', message: '1 week streak! Wow, keep it up!' };
+    if (days >= 3) return { emoji: '✨', title: 'Spark', message: 'You\'re getting consistent!' };
+    if (days >= 1) return { emoji: '🔥', title: 'Fire Start', message: 'You\'ve started your journey!' };
+    return { emoji: '🌱', title: 'New Beginning', message: 'Start your healthy journey today!' };
+  };
+
+  const currentReward = getStreakReward(streakCount);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
+          <Text style={styles.headerTitle}>Profile</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={[styles.header, Platform.OS === 'android' && { paddingTop: 10 }]}>
+        <Text style={styles.headerTitle}>Profile</Text>
+      </View>
+      
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* User Info Section */}
+        <View style={styles.userInfoSection}>
+          <View style={styles.avatar}>
+            <FontAwesome name="user" size={40} color="#007AFF" />
+          </View>
+          <Text style={styles.userName}>
+            {userProfile?.firstName || 'User'}
+          </Text>
+          <Text style={styles.userEmail}>
+            {userProfile?.email || 'user@example.com'}
+          </Text>
+        </View>
+
+        {/* Basic Stats Grid */}
+        <View style={styles.statsSection}>
+          <Text style={styles.sectionTitle}>Basic Information</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Age</Text>
+              <Text style={styles.statValue}>{userProfile?.age || '--'} years</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Height</Text>
+              <Text style={styles.statValue}>{userProfile?.height || '--'} cm</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Weight</Text>
+              <Text style={styles.statValue}>{userProfile?.weight || '--'} kg</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Gender</Text>
+              <Text style={styles.statValue}>{userProfile?.gender || '--'}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Goals & Preferences */}
+        <View style={styles.goalsSection}>
+          <Text style={styles.sectionTitle}>Goals & Preferences</Text>
+          <View style={styles.goalCards}>
+            <View style={styles.goalCard}>
+              <Text style={styles.goalEmoji}>
+                {getGoalEmoji(userProfile?.goal || '')}
+              </Text>
+              <Text style={styles.goalTitle}>Primary Goal</Text>
+              <Text style={styles.goalValue}>
+                {userProfile?.goal || 'Not set'}
+              </Text>
+            </View>
+            <View style={styles.goalCard}>
+              <Text style={styles.goalEmoji}>
+                {getWorkoutEmoji(userProfile?.workouts || '')}
+              </Text>
+              <Text style={styles.goalTitle}>Workout Frequency</Text>
+              <Text style={styles.goalValue}>
+                {userProfile?.workouts || 'Not set'}
+              </Text>
+            </View>
+            <View style={styles.goalCard}>
+              <Text style={styles.goalEmoji}>
+                {getDietEmoji(userProfile?.specificGoal || '')}
+              </Text>
+              <Text style={styles.goalTitle}>Diet Preference</Text>
+              <Text style={styles.goalValue}>
+                {userProfile?.specificGoal || 'Not set'}
+              </Text>
+            </View>
+          </View>
+          {userProfile?.desiredWeight && (
+            <View style={styles.targetWeightCard}>
+              <Text style={styles.targetWeightLabel}>Target Weight</Text>
+              <Text style={styles.targetWeightValue}>
+                {userProfile.desiredWeight} kg
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Daily Nutrition Targets */}
+        {nutritionPlan && (
+          <View style={styles.nutritionSection}>
+            <Text style={styles.sectionTitle}>Daily Nutrition Targets</Text>
+            <View style={styles.nutritionGrid}>
+              <View style={[styles.nutritionCard, { borderLeftColor: getNutritionColor('calories') }]}>
+                <View style={styles.nutritionHeader}>
+                  <Ionicons name="flame" size={24} color={getNutritionColor('calories')} />
+                  <Text style={styles.nutritionLabel}>Calories</Text>
+                </View>
+                <Text style={styles.nutritionValue}>{nutritionPlan.calories}</Text>
+                <Text style={styles.nutritionUnit}>kcal</Text>
+              </View>
+              <View style={[styles.nutritionCard, { borderLeftColor: getNutritionColor('protein') }]}>
+                <View style={styles.nutritionHeader}>
+                  <Ionicons name="flash" size={24} color={getNutritionColor('protein')} />
+                  <Text style={styles.nutritionLabel}>Protein</Text>
+                </View>
+                <Text style={styles.nutritionValue}>{nutritionPlan.protein}</Text>
+                <Text style={styles.nutritionUnit}>g</Text>
+              </View>
+              <View style={[styles.nutritionCard, { borderLeftColor: getNutritionColor('carbs') }]}>
+                <View style={styles.nutritionHeader}>
+                  <Ionicons name="leaf" size={24} color={getNutritionColor('carbs')} />
+                  <Text style={styles.nutritionLabel}>Carbs</Text>
+                </View>
+                <Text style={styles.nutritionValue}>{nutritionPlan.carbs}</Text>
+                <Text style={styles.nutritionUnit}>g</Text>
+              </View>
+              <View style={[styles.nutritionCard, { borderLeftColor: getNutritionColor('fat') }]}>
+                <View style={styles.nutritionHeader}>
+                  <Ionicons name="water" size={24} color={getNutritionColor('fat')} />
+                  <Text style={styles.nutritionLabel}>Fat</Text>
+                </View>
+                <Text style={styles.nutritionValue}>{nutritionPlan.fat}</Text>
+                <Text style={styles.nutritionUnit}>g</Text>
+              </View>
+            </View>
+            
+            {/* BMR & TDEE Info */}
+            <View style={styles.metabolicInfo}>
+              <View style={styles.metabolicCard}>
+                <Text style={styles.metabolicLabel}>BMR</Text>
+                <Text style={styles.metabolicValue}>{nutritionPlan.bmr} kcal/day</Text>
+                <Text style={styles.metabolicDescription}>Basal Metabolic Rate</Text>
+              </View>
+              <View style={styles.metabolicCard}>
+                <Text style={styles.metabolicLabel}>TDEE</Text>
+                <Text style={styles.metabolicValue}>{nutritionPlan.tdee} kcal/day</Text>
+                <Text style={styles.metabolicDescription}>Total Daily Energy Expenditure</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Progress Tracking Section */}
+        <View style={styles.progressSection}>
+          <Text style={styles.sectionTitle}>Progress Tracking</Text>
+          
+          {/* Streak Counter */}
+          <View style={styles.streakCard}>
+            <View style={styles.streakHeader}>
+              <Text style={styles.streakEmoji}>🔥</Text>
+              <Text style={styles.streakTitle}>Current Streak</Text>
+            </View>
+            <Text style={styles.streakCount}>{streakCount} Days</Text>
+            <Text style={styles.streakStatus}>
+              {streakBroken ? 'Streak broken - start fresh!' : 
+               streakAtRisk ? 'Keep going, don\'t break the streak!' : 
+               'Amazing consistency!'}
+            </Text>
+          </View>
+
+          {/* Current Reward */}
+          <View style={styles.rewardCard}>
+            <View style={styles.rewardHeader}>
+              <Text style={styles.rewardEmoji}>{currentReward.emoji}</Text>
+              <Text style={styles.rewardTitle}>{currentReward.title}</Text>
+            </View>
+            <Text style={styles.rewardMessage}>{currentReward.message}</Text>
+          </View>
+
+          {/* Weekly Progress */}
+          <View style={styles.weeklyProgressCard}>
+            <Text style={styles.weeklyTitle}>Weekly Progress</Text>
+            <View style={styles.weeklyStats}>
+              <View style={styles.weeklyStat}>
+                <Text style={styles.weeklyStatValue}>7</Text>
+                <Text style={styles.weeklyStatLabel}>Days Logged</Text>
+              </View>
+              <View style={styles.weeklyStat}>
+                <Text style={styles.weeklyStatValue}>85%</Text>
+                <Text style={styles.weeklyStatLabel}>Goal Achievement</Text>
+              </View>
+              <View style={styles.weeklyStat}>
+                <Text style={styles.weeklyStatValue}>+2.1</Text>
+                <Text style={styles.weeklyStatLabel}>Weight Change (kg)</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Monthly Achievement */}
+          <View style={styles.monthlyCard}>
+            <Text style={styles.monthlyTitle}>Monthly Achievement</Text>
+            <View style={styles.achievementRow}>
+              <View style={styles.achievementItem}>
+                <Text style={styles.achievementEmoji}>🎯</Text>
+                <Text style={styles.achievementText}>Calorie Goal</Text>
+              </View>
+              <View style={styles.achievementItem}>
+                <Text style={styles.achievementEmoji}>💪</Text>
+                <Text style={styles.achievementText}>Protein Target</Text>
+              </View>
+              <View style={styles.achievementItem}>
+                <Text style={styles.achievementEmoji}>🌱</Text>
+                <Text style={styles.achievementText}>Healthy Eating</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -54,19 +346,34 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#fff', 
-    paddingHorizontal: 16 
+    backgroundColor: '#f8f9fa', 
   },
-  title: { 
-    fontSize: 28, 
-    fontWeight: 'bold', 
-    color: '#000', 
-    marginTop: 8,
-    marginBottom: 32,
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
   },
-  userInfo: {
+  headerTitle: {
+    fontSize: 34,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  userInfoSection: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 32,
+    marginBottom: 16,
   },
   avatar: {
     width: 80,
@@ -77,27 +384,294 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  userEmail: {
-    fontSize: 18,
-    color: '#666',
-    fontWeight: '500',
+  userName: {
+    fontSize: 24,
+    color: '#000',
+    fontWeight: '600',
+    marginBottom: 8,
   },
-  logoutButton: {
+  userEmail: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '400',
+  },
+  statsSection: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  statCard: {
+    width: '48%',
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+  },
+  goalsSection: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+  },
+  goalCards: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  goalCard: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  goalEmoji: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  goalTitle: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  goalValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000',
+    textAlign: 'center',
+  },
+  targetWeightCard: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  targetWeightLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  targetWeightValue: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000',
+  },
+  nutritionSection: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+  },
+  nutritionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  nutritionCard: {
+    width: '48%',
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+  },
+  nutritionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E53935',
-    borderRadius: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 12,
+    marginBottom: 8,
   },
-  logoutText: {
+  nutritionLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+  },
+  nutritionValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 4,
+  },
+  nutritionUnit: {
+    fontSize: 12,
+    color: '#666',
+  },
+  metabolicInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  metabolicCard: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  metabolicLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  metabolicValue: {
     fontSize: 18,
-    color: '#E53935',
     fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  metabolicDescription: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
+  progressSection: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+  },
+  streakCard: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  streakHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  streakEmoji: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  streakTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  streakCount: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 8,
+  },
+  streakStatus: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  rewardCard: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  rewardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  rewardEmoji: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  rewardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  rewardMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  weeklyProgressCard: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  weeklyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 12,
+  },
+  weeklyStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  weeklyStat: {
+    alignItems: 'center',
+  },
+  weeklyStatValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#000',
+  },
+  weeklyStatLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  monthlyCard: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  monthlyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 12,
+  },
+  achievementRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  achievementItem: {
+    alignItems: 'center',
+  },
+  achievementEmoji: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  achievementText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 
