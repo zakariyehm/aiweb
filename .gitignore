@@ -32,8 +32,15 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
+
 
 # typescript
 *.tsbuildinfo
+
+
+
+# local role firebase files
+firestore.rules
 
 app-example

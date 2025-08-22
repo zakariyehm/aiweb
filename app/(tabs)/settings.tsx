@@ -3,7 +3,7 @@ import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SettingItemProps {
@@ -37,11 +37,6 @@ export default function SettingsScreen() {
     const unsub = onSnapshot(ref, (snap: any) => {
       const data = snap.data() || {};
       const p = data.profile || {};
-      
-      // Load profile image from main user document
-      if (data.profileImageUrl) {
-        p.profileImageUrl = data.profileImageUrl;
-      }
       
       // Provide hint for username policy
       if (p.lastUsernameChangeAt) {
@@ -104,13 +99,9 @@ export default function SettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile quick info */}
         <View style={styles.profileCard}>
-          {profile.profileImageUrl ? (
-            <Image source={{ uri: profile.profileImageUrl }} style={styles.profileImage} />
-          ) : (
-            <View style={styles.profileImagePlaceholder}>
-              <FontAwesome name="user" size={24} color="#666" />
-            </View>
-          )}
+          <View style={styles.profileImagePlaceholder}>
+            <FontAwesome name="user" size={24} color="#666" />
+          </View>
           <View>
             <Text style={styles.profileName}>{profile.name || profile.firstName || 'Your Name'}</Text>
             <Text style={styles.profileAge}>{profile.email || auth.currentUser?.email || 'example@email.com'}</Text>
@@ -238,18 +229,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 10,
   },
-  profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-  },
   profileImagePlaceholder: {
     width: 50,
     height: 50,
     borderRadius: 25,
     marginRight: 12,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
   },
