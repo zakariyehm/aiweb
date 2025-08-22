@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApps, initializeApp } from 'firebase/app';
 import { getAuth, initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 // Read config from Expo public env. Provide sane error messages if missing at runtime.
 const firebaseConfig = {
@@ -30,6 +31,7 @@ try {
 
 export const auth = authInstance;
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 
 export default app;
 

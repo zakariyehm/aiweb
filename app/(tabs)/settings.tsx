@@ -37,6 +37,12 @@ export default function SettingsScreen() {
     const unsub = onSnapshot(ref, (snap: any) => {
       const data = snap.data() || {};
       const p = data.profile || {};
+      
+      // Load profile image from main user document
+      if (data.profileImageUrl) {
+        p.profileImageUrl = data.profileImageUrl;
+      }
+      
       // Provide hint for username policy
       if (p.lastUsernameChangeAt) {
         let lastMs: number | undefined = undefined;
@@ -98,7 +104,13 @@ export default function SettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile quick info */}
         <View style={styles.profileCard}>
-          <Image source={{ uri: 'https://via.placeholder.com/60' }} style={styles.profileImage} />
+          {profile.profileImageUrl ? (
+            <Image source={{ uri: profile.profileImageUrl }} style={styles.profileImage} />
+          ) : (
+            <View style={styles.profileImagePlaceholder}>
+              <FontAwesome name="user" size={24} color="#666" />
+            </View>
+          )}
           <View>
             <Text style={styles.profileName}>{profile.name || profile.firstName || 'Your Name'}</Text>
             <Text style={styles.profileAge}>{profile.email || auth.currentUser?.email || 'example@email.com'}</Text>
@@ -231,6 +243,15 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 12,
+  },
+  profileImagePlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   profileName: {
     fontSize: 16,
