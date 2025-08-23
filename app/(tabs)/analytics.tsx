@@ -1,7 +1,7 @@
 import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
-import { arrayUnion, collection, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
-import React, { useEffect, useMemo, useState } from 'react';
+import { arrayUnion, collection, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -33,6 +33,11 @@ export default function AnalyticsScreen() {
   const [dailyData, setDailyData] = useState<DailyNutrition[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Debounce mechanism to prevent excessive API calls
+  const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const FETCH_COOLDOWN = 5000; // 5 seconds cooldown between fetches
 
   const timeframes = ['This Week', 'Last Week', '2 Weeks Ago', '3 Weeks Ago'];
 
@@ -141,7 +146,45 @@ export default function AnalyticsScreen() {
     return Math.round(Math.min(100, Math.max(0, totalScore)));
   };
 
-  // Fetch weekly nutrition data
+  // Data migration function to fix existing meals without date fields
+  const fixExistingMeals = async (): Promise<void> => {
+    if (!auth.currentUser) return;
+
+    try {
+      // Get all meals without date field
+      const mealsQuery = query(
+        collection(db, 'users', auth.currentUser.uid, 'meals'),
+        where('date', '==', null)
+      );
+
+      const snapshot = await getDocs(mealsQuery);
+      if (snapshot.empty) return;
+
+      const batch = writeBatch(db);
+      let fixedCount = 0;
+
+      snapshot.docs.forEach(doc => {
+        const meal = doc.data();
+        if (meal.createdAt) {
+          // Extract date from createdAt timestamp
+          const timestamp = meal.createdAt.toDate ? meal.createdAt.toDate() : new Date(meal.createdAt);
+          const dateString = timestamp.toISOString().split('T')[0];
+          
+          batch.update(doc.ref, { date: dateString });
+          fixedCount++;
+        }
+      });
+
+      if (fixedCount > 0) {
+        await batch.commit();
+        console.log(`Fixed ${fixedCount} meals with missing date fields`);
+      }
+    } catch (error) {
+      console.warn('Error fixing existing meals:', error);
+    }
+  };
+
+  // Fetch weekly nutrition data with fallback logic
   const fetchWeeklyNutrition = async (weekStart: string, weekEnd: string): Promise<WeeklyNutrition> => {
     if (!auth.currentUser) {
       return {
@@ -158,29 +201,69 @@ export default function AnalyticsScreen() {
     }
 
     try {
-      const mealsQuery = query(
+      // Primary query: try to fetch meals with date field
+      let mealsQuery = query(
         collection(db, 'users', auth.currentUser.uid, 'meals'),
         where('date', '>=', weekStart),
         where('date', '<=', weekEnd),
         orderBy('date', 'asc')
       );
 
-      const snapshot = await getDocs(mealsQuery);
-      const meals = snapshot.docs.map(doc => doc.data());
+      let snapshot = await getDocs(mealsQuery);
+      let meals = snapshot.docs.map(doc => doc.data());
+
+      // Fallback: if no meals found, fetch all meals and filter by createdAt
+      if (meals.length === 0) {
+        const allMealsQuery = query(
+          collection(db, 'users', auth.currentUser.uid, 'meals'),
+          orderBy('createdAt', 'desc'),
+          limit(100) // Limit to prevent excessive data fetching
+        );
+
+        const allSnapshot = await getDocs(allMealsQuery);
+        const allMeals = allSnapshot.docs.map(doc => doc.data());
+
+        // Filter meals within the week range based on createdAt
+        meals = allMeals.filter(meal => {
+          if (!meal.createdAt) return false;
+          
+          try {
+            const timestamp = meal.createdAt.toDate ? meal.createdAt.toDate() : new Date(meal.createdAt);
+            const mealDate = timestamp.toISOString().split('T')[0];
+            return mealDate >= weekStart && mealDate <= weekEnd;
+          } catch {
+            return false;
+          }
+        });
+      }
 
       // Group meals by date to count unique days
-      const uniqueDays = new Set(meals.map(meal => meal.date));
+      const uniqueDays = new Set<string>();
+      const totals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+
+      meals.forEach(meal => {
+        let mealDate = meal.date;
+        
+        // If no date field, try to extract from createdAt
+        if (!mealDate && meal.createdAt) {
+          try {
+            const timestamp = meal.createdAt.toDate ? meal.createdAt.toDate() : new Date(meal.createdAt);
+            mealDate = timestamp.toISOString().split('T')[0];
+          } catch {
+            return; // Skip this meal if date parsing fails
+          }
+        }
+
+        if (mealDate) {
+          uniqueDays.add(mealDate);
+          totals.calories += meal.calories || 0;
+          totals.protein += meal.proteinG || 0;
+          totals.carbs += meal.carbsG || 0;
+          totals.fat += meal.fatG || 0;
+        }
+      });
+
       const daysTracked = uniqueDays.size;
-
-      // Calculate totals
-      const totals = meals.reduce((acc, meal) => ({
-        calories: acc.calories + (meal.calories || 0),
-        protein: acc.protein + (meal.proteinG || 0),
-        carbs: acc.carbs + (meal.carbsG || 0),
-        fat: acc.fat + (meal.fatG || 0),
-      }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
-
-      // Determine if this is a rest week (after 7 days of tracking)
       const isRestWeek = daysTracked === 0;
 
       // Calculate health score
@@ -208,7 +291,7 @@ export default function AnalyticsScreen() {
         weekLabel: getWeekLabel(weekStart)
       };
     } catch (error) {
-      console.error('Error fetching weekly nutrition:', error);
+      console.warn('Error fetching weekly nutrition:', error);
       return {
         weekStart,
         totalCalories: 0,
@@ -269,18 +352,55 @@ export default function AnalyticsScreen() {
     }
   };
 
-  // Load current week data
-  useEffect(() => {
-    const loadCurrentWeek = async () => {
+  // Debounced data loading function
+  const debouncedLoadData = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastFetchTime < FETCH_COOLDOWN) {
+      return; // Still in cooldown period
+    }
+
+    setLastFetchTime(now);
+    
+    try {
+      // Run data migration first
+      await fixExistingMeals();
+      
       const weekStart = getWeekStart();
       const weekEnd = getWeekEnd();
       const weekData = await fetchWeeklyNutrition(weekStart, weekEnd);
       setCurrentWeek(weekData);
       setLoading(false);
-    };
+    } catch (error) {
+      console.warn('Error in debounced data loading:', error);
+      setLoading(false);
+    }
+  }, [lastFetchTime, userPlan]);
 
-    loadCurrentWeek();
-  }, [userPlan]);
+  // Load current week data with debouncing
+  useEffect(() => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+
+    const timer = setTimeout(() => {
+      debouncedLoadData();
+    }, 300); // 300ms debounce delay
+
+    setDebounceTimer(timer);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [debouncedLoadData]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+    };
+  }, [debounceTimer]);
 
   // Load weekly history
   useEffect(() => {
@@ -375,30 +495,33 @@ export default function AnalyticsScreen() {
     }
   };
 
-  // Refresh data
+  // Refresh data with debouncing
   const onRefresh = async () => {
+    if (refreshing) return; // Prevent multiple simultaneous refreshes
+    
     setRefreshing(true);
     try {
-      const weekStart = getWeekStart();
-      const weekEnd = getWeekEnd();
-      const weekData = await fetchWeeklyNutrition(weekStart, weekEnd);
-      setCurrentWeek(weekData);
+      // Use debounced approach for refresh
+      await debouncedLoadData();
       
-      // Reload weekly history
-      const history: WeeklyNutrition[] = [];
-      for (let i = 1; i <= 4; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - (i * 7));
-        const weekStart = getWeekStart(date);
-        const weekEnd = getWeekEnd(date);
-        const weekData = await fetchWeeklyNutrition(weekStart, weekEnd);
-        history.push(weekData);
+      // Reload weekly history with cooldown check
+      const now = Date.now();
+      if (now - lastFetchTime >= FETCH_COOLDOWN) {
+        const history: WeeklyNutrition[] = [];
+        for (let i = 1; i <= 4; i++) {
+          const date = new Date();
+          date.setDate(date.getDate() - (i * 7));
+          const weekStart = getWeekStart(date);
+          const weekEnd = getWeekEnd(date);
+          const weekData = await fetchWeeklyNutrition(weekStart, weekEnd);
+          history.push(weekData);
+        }
+        setWeeklyHistory(history);
+        
+        await fetchDailyNutrition();
       }
-      setWeeklyHistory(history);
-      
-      await fetchDailyNutrition();
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.warn('Error refreshing data:', error);
     } finally {
       setRefreshing(false);
     }
@@ -932,7 +1055,6 @@ const styles = StyleSheet.create({
   emptyChartText: {
     fontSize: 18,
     color: '#666',
-    marginTop: 10,
   },
   emptyChartSubtext: {
     fontSize: 14,
@@ -954,6 +1076,3 @@ const styles = StyleSheet.create({
   modalPrimary: { backgroundColor: '#000', paddingVertical: 12, paddingHorizontal: 18, borderRadius: 20, width: '48%', alignItems: 'center' },
   modalPrimaryText: { color: '#fff', fontWeight: '700' },
 });
-
-
-
