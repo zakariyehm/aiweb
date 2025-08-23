@@ -65,6 +65,12 @@ export function useDailyProgress(userId: string | undefined, plan: DailyPlan | n
       }, { merge: true });
       
       setTotals(dailyTotals);
+    }, (err) => {
+      if (String(err?.code || '').includes('permission-denied')) {
+        console.warn('[DailyProgress] meals snapshot permission denied');
+        return;
+      }
+      console.warn('[DailyProgress] meals snapshot error', err);
     });
 
     const timer = setTimeout(() => setDateKey(getLocalDateKey()), msUntilNextLocalMidnight());

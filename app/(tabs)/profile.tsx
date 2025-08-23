@@ -299,7 +299,7 @@ export default function ProfileScreen() {
             </Text>
             <Text style={styles.streakDescription}>
               A Streak unlocks when you log your meals on consecutive days. Keep tracking to upgrade your Streak badge. 
-              <Text style={styles.learnMoreLink}> Learn more</Text>
+              {/* <Text style={styles.learnMoreLink}> Learn more</Text> */}
             </Text>
           </View>
 

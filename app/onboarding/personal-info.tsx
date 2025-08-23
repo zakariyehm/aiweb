@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { createUserWithEmailAndPassword, signInAnonymously, updateProfile } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { arrayUnion, doc, getDoc, increment, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -174,6 +174,7 @@ const OnboardingScreen = () => {
   const [setupProgress, setSetupProgress] = useState(0);
   const [currentOperation, setCurrentOperation] = useState('');
   const [showSkipLoading, setShowSkipLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
 
   const questions = [
     { key: 'firstName', title: "What's your first name?", type: 'input', keyboard: 'default' as const, placeholder: 'John' },
@@ -468,6 +469,83 @@ const OnboardingScreen = () => {
       createdAt: serverTimestamp(),
       isGuest: false,
     }, { merge: true });
+
+    // Reserve a personal promo code for this user and initialize referral info
+    await reservePromoCodeForUser(uid, String(onboardingData.firstName || ''));
+    // If a referral code was entered, apply referral rewards
+    await applyReferralIfAny(uid);
+  };
+
+  // Generate and reserve a promo code for the new user
+  const reservePromoCodeForUser = async (uid: string, firstName: string) => {
+    const base = (firstName || 'N').trim().toUpperCase()[0] || 'N';
+    let attempts = 0;
+    let code = '';
+    while (attempts < 6) {
+      const num = Math.floor(100 + Math.random() * 900); // 100-999
+      code = `${base}${num}`;
+      const codeRef = doc(db, 'promoCodes', code);
+      const exists = await getDoc(codeRef);
+      if (!exists.exists()) {
+        await setDoc(codeRef, { uid, code, createdAt: serverTimestamp() }, { merge: false });
+        // Initialize referral info on the user
+        await setDoc(doc(db, 'users', uid), {
+          referral: {
+            promoCode: code,
+            referredCount: 0,
+            earningsCents: 0,
+            referredPeople: [],
+          }
+        }, { merge: true });
+        return;
+      }
+      attempts++;
+    }
+    // Fallback unique code based on uid
+    const fallback = `${base}${uid.slice(0, 5).toUpperCase()}`;
+    const fallbackRef = doc(db, 'promoCodes', fallback);
+    await setDoc(fallbackRef, { uid, code: fallback, createdAt: serverTimestamp() }, { merge: true });
+    await setDoc(doc(db, 'users', uid), {
+      referral: {
+        promoCode: fallback,
+        referredCount: 0,
+        earningsCents: 0,
+        referredPeople: [],
+      }
+    }, { merge: true });
+  };
+
+  // Apply referral rewards if the user entered a valid code
+  const applyReferralIfAny = async (uid: string) => {
+    const raw = String(referralCode || '').trim().toUpperCase();
+    if (!raw) return;
+    try {
+      const codeRef = doc(db, 'promoCodes', raw);
+      const snap = await getDoc(codeRef);
+      if (!snap.exists()) return;
+      const referrerId = String(snap.data()?.uid || '');
+      if (!referrerId || referrerId === uid) return;
+
+      const referrerUserRef = doc(db, 'users', referrerId);
+      const newUserRef = doc(db, 'users', uid);
+      const batch = writeBatch(db);
+      // Update referrer referral info (only 'referral' key per rules)
+      batch.set(referrerUserRef, {
+        referral: {
+          referredCount: increment(1),
+          earningsCents: increment(100),
+          referredPeople: arrayUnion(uid),
+        }
+      }, { merge: true });
+      // Update new user's referral metadata (no earnings for the new user)
+      batch.set(newUserRef, {
+        referral: {
+          usedReferrerId: referrerId,
+          usedReferrerCode: raw,
+        }
+      }, { merge: true });
+      await batch.commit();
+    } catch {}
   };
 
   const handleEmailPasswordSignUp = async () => {
@@ -671,6 +749,21 @@ const OnboardingScreen = () => {
               value={password}
               onChangeText={setPassword}
             />
+          </View>
+          {/* Optional referral code */}
+          <View style={{ width: '100%', marginBottom: 4 }}>
+            <Text style={{ fontSize: 14, color: theme.gray, marginBottom: 6 }}>Referral code (optional)</Text>
+            <TextInput
+              style={[styles.modalInput, { width: '100%' }]}
+              placeholder="Enter promo code or leave blank"
+              placeholderTextColor={theme.placeholder}
+              autoCapitalize="characters"
+              value={referralCode}
+              onChangeText={setReferralCode}
+            />
+            <TouchableOpacity onPress={() => setReferralCode('')} style={{ marginTop: 6 }}>
+              <Text style={{ color: theme.gray }}>Skip</Text>
+            </TouchableOpacity>
           </View>
           {!!accountError && (
             <Text style={{ color: theme.error, width: '100%', marginBottom: 8 }}>{accountError}</Text>

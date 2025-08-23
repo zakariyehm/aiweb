@@ -46,6 +46,13 @@ export default function HomeScreen() {
         } else {
           setPlan(null);
         }
+      }, (err) => {
+        if (String(err?.code || '').includes('permission-denied')) {
+          console.warn('[Home] Plan snapshot permission denied');
+          setPlan(null);
+          return;
+        }
+        console.warn('[Home] Plan snapshot error', err);
       });
       return () => {
         unsubDoc();

@@ -38,6 +38,12 @@ export function useStreak(userId?: string | null) {
       setCount(Number(s.count || 0));
       setLastDone(s.lastDoneDate);
       loadedRef.current = true;
+    }, (err) => {
+      if (String(err?.code || '').includes('permission-denied')) {
+        console.warn('[Streak] user snapshot permission denied');
+        return;
+      }
+      console.warn('[Streak] user snapshot error', err);
     });
     return () => unsub();
   }, [userId]);

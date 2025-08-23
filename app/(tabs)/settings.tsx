@@ -27,6 +27,7 @@ export default function SettingsScreen() {
   const [rolloverCalories, setRolloverCalories] = useState(true);
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<any>({});
+  const [referral, setReferral] = useState<any>({});
   const { logout } = useAuth();
   useEffect(() => {
     // Read profile from Firestore
@@ -37,6 +38,7 @@ export default function SettingsScreen() {
     const unsub = onSnapshot(ref, (snap: any) => {
       const data = snap.data() || {};
       const p = data.profile || {};
+      const r = data.referral || {};
       
       // Provide hint for username policy
       if (p.lastUsernameChangeAt) {
@@ -50,6 +52,13 @@ export default function SettingsScreen() {
         }
       }
       setProfile(p);
+      setReferral(r);
+    }, (err: any) => {
+      if (String(err?.code || '').includes('permission-denied')) {
+        console.warn('[Settings] User snapshot permission denied');
+        return;
+      }
+      console.warn('[Settings] User snapshot error', err);
     });
     return unsub;
   }, []);
@@ -113,6 +122,35 @@ export default function SettingsScreen() {
           <View>
             <Text style={styles.profileName}>{profile.name || profile.firstName || 'Your Name'}</Text>
             <Text style={styles.profileAge}>{profile.email || auth.currentUser?.email || 'example@email.com'}</Text>
+          </View>
+        </View>
+
+        {/* Referral info */}
+        <View style={styles.listSection}>
+          <Text style={styles.sectionBadge}>REFERRALS</Text>
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowLabel}>Promo Code</Text>
+            </View>
+            <View style={styles.rowRight}>
+              <Text style={styles.rowValue}>{referral.promoCode || '—'}</Text>
+            </View>
+          </View>
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowLabel}>Referred People</Text>
+            </View>
+            <View style={styles.rowRight}>
+              <Text style={styles.rowValue}>{Number(referral.referredCount || 0)}</Text>
+            </View>
+          </View>
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowLabel}>Earnings</Text>
+            </View>
+            <View style={styles.rowRight}>
+              <Text style={styles.rowValue}>${((Number(referral.earningsCents || 0)) / 100).toFixed(2)}</Text>
+            </View>
           </View>
         </View>
 

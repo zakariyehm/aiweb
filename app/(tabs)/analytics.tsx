@@ -444,6 +444,12 @@ export default function AnalyticsScreen() {
       if (!isNaN(desired)) setGoalWeight(desired);
       if (!isNaN(height)) setHeightCm(height);
       if (plan) setUserPlan(plan);
+    }, (err) => {
+      if (String(err?.code || '').includes('permission-denied')) {
+        console.warn('[Analytics] User snapshot permission denied');
+        return;
+      }
+      console.warn('[Analytics] User snapshot error', err);
     });
     
     return unsub;

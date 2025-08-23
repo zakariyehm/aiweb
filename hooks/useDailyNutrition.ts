@@ -170,6 +170,12 @@ export function useDailyNutrition(userId: string | undefined, selectedDate: 'tod
           });
         });
       }
+    }, (error) => {
+      if (String(error?.code || '').includes('permission-denied')) {
+        console.warn('[iOS Debug] All meals snapshot permission denied');
+        return;
+      }
+      console.warn('[iOS Debug] All meals snapshot error', error);
     });
     
     const todayMealsQuery = query(
