@@ -2,7 +2,7 @@ import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
 import { arrayUnion, collection, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface WeeklyNutrition {
@@ -808,44 +808,52 @@ export default function AnalyticsScreen() {
 
       {/* Goal Weight Modal */}
       <Modal visible={isGoalModalOpen} transparent animationType="slide" onRequestClose={() => setIsGoalModalOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Update weight goal</Text>
-            <View style={styles.modalRow}>
-              <Text style={styles.modalLabel}>Goal (kg)</Text>
-              <TextInput style={styles.modalInput} keyboardType="numeric" value={goalInput} onChangeText={setGoalInput} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Update weight goal</Text>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Goal (kg)</Text>
+                  <TextInput style={styles.modalInput} keyboardType="numeric" value={goalInput} onChangeText={setGoalInput} />
+                </View>
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={styles.modalSecondary} onPress={() => setIsGoalModalOpen(false)}>
+                    <Text style={styles.modalSecondaryText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.modalPrimary} onPress={saveGoalWeight} disabled={saving}>
+                    <Text style={styles.modalPrimaryText}>{saving ? 'Saving…' : 'Save'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalSecondary} onPress={() => setIsGoalModalOpen(false)}>
-                <Text style={styles.modalSecondaryText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalPrimary} onPress={saveGoalWeight} disabled={saving}>
-                <Text style={styles.modalPrimaryText}>{saving ? 'Saving…' : 'Save'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Log Weight Modal */}
       <Modal visible={isLogModalOpen} transparent animationType="slide" onRequestClose={() => setIsLogModalOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Log current weight</Text>
-            <View style={styles.modalRow}>
-              <Text style={styles.modalLabel}>Weight (kg)</Text>
-              <TextInput style={styles.modalInput} keyboardType="numeric" value={logInput} onChangeText={setLogInput} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
+                <Text style={styles.modalTitle}>Log current weight</Text>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Weight (kg)</Text>
+                  <TextInput style={styles.modalInput} keyboardType="numeric" value={logInput} onChangeText={setLogInput} />
+                </View>
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={styles.modalSecondary} onPress={() => setIsLogModalOpen(false)}>
+                    <Text style={styles.modalSecondaryText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.modalPrimary} onPress={logCurrentWeight} disabled={saving}>
+                    <Text style={styles.modalPrimaryText}>{saving ? 'Saving…' : 'Save'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalSecondary} onPress={() => setIsLogModalOpen(false)}>
-                <Text style={styles.modalSecondaryText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalPrimary} onPress={logCurrentWeight} disabled={saving}>
-                <Text style={styles.modalPrimaryText}>{saving ? 'Saving…' : 'Save'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

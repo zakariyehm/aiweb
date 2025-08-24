@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
@@ -98,7 +98,8 @@ export default function HomeScreen() {
     recentlyEaten, 
     dailyTotals,
     todayData,
-    yesterdayData
+    yesterdayData,
+    loading
   } = useDailyNutrition(uid, selectedTab);
   const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(uid);
 
@@ -112,6 +113,15 @@ export default function HomeScreen() {
       yesterdayData: yesterdayData.recentlyEaten.map(m => ({ id: m.id, title: m.title, date: m.date }))
     });
   }, [selectedTab, todayData, yesterdayData]);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}> 
+        <ActivityIndicator size="large" color="#772CE8" />
+        <Text style={{ marginTop: 10, fontSize: 16, color: '#666' }}>Loading your nutrition data...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -266,8 +276,10 @@ export default function HomeScreen() {
       </ScrollView>
       {/* Edit Modal */}
       <Modal visible={isEditOpen} transparent animationType="slide" onRequestClose={() => setIsEditOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit daily recommendation</Text>
             <View style={styles.modalRow}>
               <Text style={styles.modalLabel}>Calories</Text>
@@ -285,16 +297,18 @@ export default function HomeScreen() {
               <Text style={styles.modalLabel}>Fats (g)</Text>
               <TextInput style={styles.modalInput} keyboardType="numeric" value={editFat} onChangeText={setEditFat} />
             </View>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalSecondary} onPress={() => setIsEditOpen(false)}>
-                <Text style={styles.modalSecondaryText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalPrimary} onPress={saveEdit} disabled={saving}>
-                <Text style={styles.modalPrimaryText}>{saving ? 'Saving…' : 'Save'}</Text>
-              </TouchableOpacity>
+                <View style={styles.modalActions}>
+                  <TouchableOpacity style={styles.modalSecondary} onPress={() => setIsEditOpen(false)}>
+                    <Text style={styles.modalSecondaryText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.modalPrimary} onPress={saveEdit} disabled={saving}>
+                    <Text style={styles.modalPrimaryText}>{saving ? 'Saving…' : 'Save'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
