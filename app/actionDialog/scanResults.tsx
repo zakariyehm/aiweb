@@ -5,7 +5,7 @@ import { ScanResult } from '@/types/scan';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, BackHandler, Image, PanResponder, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ScanResultsModal() {
@@ -96,6 +96,35 @@ export default function ScanResultsModal() {
     }
   }, [isLoading, spinAnim]);
 
+  // Block hardware back to prevent accidental dismiss (Android)
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, []);
+
+  // Enable manual pull-down to close (only downward swipe on the sheet)
+  const dragY = useRef(new Animated.Value(0)).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 10,
+      onPanResponderMove: (_, gesture) => {
+        // Allow downward drag; resist upward drag
+        const dy = gesture.dy > 0 ? gesture.dy : gesture.dy / 4;
+        dragY.setValue(dy);
+      },
+      onPanResponderRelease: (_, gesture) => {
+        const shouldClose = gesture.dy > 140 || gesture.vy > 1;
+        if (shouldClose) {
+          Animated.timing(dragY, { toValue: 800, duration: 220, useNativeDriver: true }).start(() => {
+            router.replace('/(tabs)');
+          });
+        } else {
+          Animated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
+        }
+      },
+    })
+  ).current;
+
   const handleClose = () => {
     // Go back to camera and reopen it
     router.replace({ pathname: '/actionDialog/scan', params: { reopen: '1' } });
@@ -146,7 +175,7 @@ export default function ScanResultsModal() {
   return (
     <View style={styles.container}>
       {/* Top Section - 40% of screen (Image) */}
-      <View style={styles.topSection}>
+      <View style={styles.topSection} pointerEvents="none">
         {/* Food Image - Full background */}
         {scanResult.imageUri ? (
           <Image source={{ uri: scanResult.imageUri }} style={styles.foodImage} resizeMode="cover" />
@@ -156,37 +185,37 @@ export default function ScanResultsModal() {
             <Text style={styles.noImageText}>No image available</Text>
           </View>
         )}
-        
-        {/* Removed overlay to avoid blocking image area */}
-        
-        {/* Close Button - Safe area aware */}
-        <TouchableOpacity 
-          style={[styles.closeButton, { top: insets.top + 20 }]} 
-          onPress={handleClose}
-          accessibilityRole="button"
-          accessibilityLabel="Close scan results"
-        >
-          <Ionicons name="close" size={24} color="#000" />
-        </TouchableOpacity>
       </View>
 
-      {/* Bottom Section - 60% of screen (Content) */}
+      {/* Close Button - above image, not affected by pointer events */}
+      <TouchableOpacity 
+        style={[styles.closeButton, { top: insets.top + 20 }]} 
+        onPress={handleClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close scan results"
+      >
+        <Ionicons name="close" size={24} color="#000" />
+      </TouchableOpacity>
+
+      {/* Bottom Section - rounded, scrollable content */}
       <Animated.View 
         style={[
-          styles.bottomSection,
-          { transform: [{ translateY: slideAnim }] }
+          styles.sheet,
+          { transform: [{ translateY: Animated.add(slideAnim, dragY) }] }
         ]}
+        {...panResponder.panHandlers}
       >
+        <View style={styles.handle} />
         <ScrollView 
           style={styles.contentContainer} 
           contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
           showsVerticalScrollIndicator={false}
+          bounces
         >
           {/* Title and Timestamp */}
           <View style={styles.titleSection}>
             <View style={styles.titleRow}>
-              
-              <Text style={styles.timestamp}>{formattedTime}</Text>
+              <View style={styles.timeChip}><Text style={styles.timeChipText}>{formattedTime}</Text></View>
             </View>
             <Text style={styles.foodTitle}>{scanResult.title}</Text>
           </View>
@@ -298,23 +327,35 @@ export default function ScanResultsModal() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000',
   },
   topSection: {
-    height: '40%', // 40% of screen height
-    backgroundColor: '#fff',
-    position: 'relative',
+    ...StyleSheet.absoluteFillObject as any,
+    backgroundColor: '#000',
   },
-  bottomSection: {
-    flex: 1, // Takes remaining 60% of screen
+  sheet: {
+    position: 'absolute',
+    top: '35%',
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: Platform.OS === 'ios' ? 0.15 : 0.1,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#E5E7EB',
+    marginTop: 8,
+    marginBottom: 8,
   },
   closeButton: {
     position: 'absolute',
@@ -333,8 +374,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   foodImage: {
-    width: '100%',
-    height: '100%', // Cover the full height of the top section
+    ...StyleSheet.absoluteFillObject as any,
+    width: undefined,
+    height: undefined,
   },
   noImagePlaceholder: {
     flex: 1,
@@ -361,26 +403,35 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   titleSection: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
+  timeChip: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  timeChipText: { fontSize: 12, color: '#444' },
   timestamp: {
     fontSize: 14,
     color: '#666',
     marginLeft: 8,
   },
   foodTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#000',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   caloriesCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fbfbfb',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -405,13 +456,13 @@ const styles = StyleSheet.create({
   macrosRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 16,
     gap: 12,
   },
   macroCard: {
     flex: 1,
     minWidth: 80, // Ensure cards don't get too small
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fbfbfb',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -436,10 +487,10 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   healthScoreCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fbfbfb',
     borderRadius: 16,
     padding: 20,
-    marginBottom: 24,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

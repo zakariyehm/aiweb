@@ -1,6 +1,8 @@
+import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/hooks/useAuth';
 import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { fetchSignInMethodsForEmail, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -115,21 +117,16 @@ export default function SignInScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 16 }]}>
       <View style={[styles.content, Platform.OS === 'android' && { paddingTop: 20 }]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={handleBackToWelcome}>
-            <FontAwesome name="arrow-left" size={24} color="#000000" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Welcome back</Text>
-          <View style={styles.placeholder} />
-        </View>
+        {/* Header removed – using native app bar */}
 
         {/* Logo */}
         <View style={styles.logoContainer}>
-          <View style={styles.logo}>
-            <FontAwesome name="cutlery" size={40} color="#007AFF" />
-          </View>
-          <Text style={styles.appName}>Cal AI</Text>
+          <Image
+            source={require('@/assets/images/logoApp.svg')}
+            style={styles.logoSvg}
+            contentFit="contain"
+          />
+          <Text style={styles.appName}>NutroAi</Text>
         </View>
 
         {/* Sign In Form */}
@@ -227,7 +224,7 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.light.background,
   },
   content: {
     flex: 1,
@@ -247,7 +244,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000000',
+    color: Colors.light.text,
   },
   placeholder: {
     width: 40,
@@ -260,7 +257,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -273,10 +270,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  logoSvg: {
+    width: 80,
+    height: 60,
+    marginBottom: 8,
+  },
   appName: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#000000',
+    color: Colors.light.text,
   },
   formContainer: {
     marginBottom: 32,
@@ -287,21 +289,21 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: Colors.light.text,
     marginBottom: 8,
   },
   textInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.background,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#E0E0E0',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#000000',
+    color: Colors.light.text,
   },
   continueButton: {
-    backgroundColor: '#000000',
+    backgroundColor: Colors.light.tint,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
@@ -316,7 +318,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   continueButtonText: {
-    color: '#FFFFFF',
+    color: Colors.light.background,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -335,7 +337,7 @@ const styles = StyleSheet.create({
   },
   signUpLink: {
     fontSize: 16,
-    color: '#007AFF',
+    color: Colors.light.tint,
     textDecorationLine: 'underline',
   },
   separatorContainer: {

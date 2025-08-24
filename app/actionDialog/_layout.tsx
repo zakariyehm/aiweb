@@ -12,7 +12,15 @@ export default function ActionDialogLayout() {
       }}
     >
       <Stack.Screen name="scan" />
-      <Stack.Screen name="scanResults" />
+      <Stack.Screen
+        name="scanResults"
+        options={{
+          // Present as a form sheet and disable gesture/tap dismiss
+          presentation: 'formSheet',
+          gestureEnabled: false, // Prevent swipe-to-dismiss
+          contentStyle: { backgroundColor: '#fff' },
+        }}
+      />
       <Stack.Screen name="fixResults" />
     </Stack>
   );

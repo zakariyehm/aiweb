@@ -1,3 +1,4 @@
+import { Colors } from '@/constants/Colors';
 import { FontAwesome } from '@expo/vector-icons';
 import { Tabs, router } from 'expo-router';
 import React from 'react';
@@ -19,12 +20,12 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#000',
+        tabBarActiveTintColor: Colors.light.text,
         tabBarInactiveTintColor: '#C9C9CF',
         tabBarLabelStyle: { fontSize: 12, fontWeight: '600', marginBottom: Platform.OS === 'ios' ? 0 : 2 },
         tabBarStyle: Platform.select({
-          ios: { position: 'absolute' },
-          default: {},
+          ios: { position: 'absolute', backgroundColor: Colors.light.background },
+          default: { backgroundColor: Colors.light.background },
         }),
       }}>
       <Tabs.Screen
