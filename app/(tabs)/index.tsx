@@ -155,10 +155,14 @@ export default function HomeScreen() {
         <View style={styles.headerRight}>
           <View style={[
             styles.streakPill,
-            streakBroken ? { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' } : streakAtRisk ? { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' } : null,
+            streakBroken 
+              ? { backgroundColor: colorScheme === 'dark' ? '#7F1D1D' : '#FEE2E2', borderColor: colors.error } 
+              : streakAtRisk 
+              ? { backgroundColor: colorScheme === 'dark' ? '#78350F' : '#FFF7ED', borderColor: colors.warning } 
+              : null,
           ]}>
             <Text style={styles.streakFire}>🔥</Text>
-            <Text style={[styles.streakNum, streakBroken ? { color: '#B91C1C' } : streakAtRisk ? { color: '#B45309' } : null]}>{streakCount}</Text>
+            <Text style={[styles.streakNum, streakBroken ? { color: colors.error } : streakAtRisk ? { color: colors.warning } : null]}>{streakCount}</Text>
           </View>
         </View>
       </View>

@@ -710,7 +710,7 @@ export default function AnalyticsScreen() {
                     <View style={styles.macroBar}>
                       <View style={[styles.macroFill, { 
                         width: `${Math.min(100, (selectedWeekData.totalProtein / (userPlan?.protein || 1) / 7) * 100)}%`,
-                        backgroundColor: '#F97373'
+                        backgroundColor: colors.protein
                       }]} />
                     </View>
                     {userPlan && (
@@ -725,7 +725,7 @@ export default function AnalyticsScreen() {
                     <View style={styles.macroBar}>
                       <View style={[styles.macroFill, { 
                         width: `${Math.min(100, (selectedWeekData.totalCarbs / (userPlan?.carbs || 1) / 7) * 100)}%`,
-                        backgroundColor: '#F59E0B'
+                        backgroundColor: colors.carbs
                       }]} />
                     </View>
                     {userPlan && (
@@ -740,7 +740,7 @@ export default function AnalyticsScreen() {
                     <View style={styles.macroBar}>
                       <View style={[styles.macroFill, { 
                         width: `${Math.min(100, (selectedWeekData.totalFat / (userPlan?.fat || 1) / 7) * 100)}%`,
-                        backgroundColor: '#3B82F6'
+                        backgroundColor: colors.fat
                       }]} />
                     </View>
                     {userPlan && (
