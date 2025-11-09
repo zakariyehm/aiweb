@@ -1,6 +1,8 @@
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/useAuth';
-import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
+import { useQuery } from 'convex/react';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
@@ -28,24 +30,22 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<any>({});
   const [referral, setReferral] = useState<any>({});
-  const { logout } = useAuth();
+  const { logout, userSession } = useAuth();
+  const userId = userSession?.userId as Id<"users"> | undefined;
+  
+  // Fetch user data (reactive)
+  const userData = useQuery(api.users.get, userId ? { userId } : "skip");
+
   useEffect(() => {
-    // Read profile from Firestore
-    const user = auth.currentUser;
-    if (!user) return;
-    const { doc, onSnapshot } = require('firebase/firestore');
-    const ref = doc(db, 'users', user.uid);
-    const unsub = onSnapshot(ref, (snap: any) => {
-      const data = snap.data() || {};
-      const p = data.profile || {};
-      const r = data.referral || {};
+    if (userData) {
+      const p = userData.profile || {};
+      const r = userData.referral || {};
       
       // Provide hint for username policy
       if (p.lastUsernameChangeAt) {
         let lastMs: number | undefined = undefined;
         const last = p.lastUsernameChangeAt;
         if (typeof last === 'number') lastMs = last;
-        else if (last && typeof last.toMillis === 'function') lastMs = last.toMillis();
         if (lastMs) {
           const nextDate = new Date(lastMs + 365 * 24 * 60 * 60 * 1000);
           (p as any)._usernameNextChange = nextDate;
@@ -53,15 +53,8 @@ export default function SettingsScreen() {
       }
       setProfile(p);
       setReferral(r);
-    }, (err: any) => {
-      if (String(err?.code || '').includes('permission-denied')) {
-        console.warn('[Settings] User snapshot permission denied');
-        return;
-      }
-      console.warn('[Settings] User snapshot error', err);
-    });
-    return unsub;
-  }, []);
+    }
+  }, [userData]);
 
   const SettingItem = ({ icon, title, subtitle, onPress, showToggle, toggleValue, onToggleChange, showArrow = true }: SettingItemProps) => (
     <TouchableOpacity style={styles.settingItem} onPress={onPress} disabled={!onPress}>
@@ -121,7 +114,7 @@ export default function SettingsScreen() {
           </View>
           <View>
             <Text style={styles.profileName}>{profile.name || profile.firstName || 'Your Name'}</Text>
-            <Text style={styles.profileAge}>{profile.email || auth.currentUser?.email || 'example@email.com'}</Text>
+            <Text style={styles.profileAge}>{profile.email || userSession?.email || 'example@email.com'}</Text>
           </View>
         </View>
 
@@ -162,7 +155,7 @@ export default function SettingsScreen() {
             { label: 'Username', value: profile.username || '', key: 'username' },
             { label: 'Age', value: profile.age ? String(profile.age) : '—', key: 'age' },
             { label: 'Mobile Number', value: profile.phone || '—', key: 'phone' },
-            { label: 'Email', value: profile.email || auth.currentUser?.email || '', key: 'email' },
+            { label: 'Email', value: profile.email || userSession?.email || '', key: 'email' },
             { label: 'Password', value: '', key: 'password' },
             { label: 'Gender', value: profile.gender || '—', key: 'gender' },
           ].map((row, idx) => (

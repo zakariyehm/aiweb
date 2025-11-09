@@ -1,11 +1,12 @@
 import CardComponent from '@/components/homeComponents/cardComponent';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
+import { useAuth } from '@/hooks/useAuth';
 import useDailyNutrition from '@/hooks/useDailyNutrition';
 import useStreak from '@/hooks/useStreak';
-import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
+import { useMutation, useQuery } from 'convex/react';
 import { router } from 'expo-router';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,37 +30,32 @@ export default function HomeScreen() {
     return rounded % 1 === 0 ? `${rounded}g` : `${rounded}g`;
   };
 
+  // Get user session
+  const { userSession, isLoggedIn } = useAuth();
+  const userId = userSession?.userId as Id<"users"> | undefined;
+
+  // Fetch user data (reactive)
+  const userData = useQuery(api.users.get, userId ? { userId } : "skip");
+
+  // Update plan mutation
+  const updatePlanMutation = useMutation(api.users.updatePlan);
+
+  // Redirect to onboarding if not logged in
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        // Redirect to onboarding if signed out
-        try { router.replace('/onboarding/welcome'); } catch {}
-        setPlan(null);
-        return;
-      }
-      const ref = doc(db, 'users', user.uid);
-      const unsubDoc = onSnapshot(ref, (snap) => {
-        const data: any = snap.data() || {};
-        if (data?.plan) {
-          const { calories = 0, protein = 0, carbs = 0, fat = 0 } = data.plan || {};
-          setPlan({ calories, protein, carbs, fat });
-        } else {
-          setPlan(null);
-        }
-      }, (err) => {
-        if (String(err?.code || '').includes('permission-denied')) {
-          console.warn('[Home] Plan snapshot permission denied');
-          setPlan(null);
-          return;
-        }
-        console.warn('[Home] Plan snapshot error', err);
-      });
-      return () => {
-        unsubDoc();
-      };
-    });
-    return unsubAuth;
-  }, []);
+    if (isLoggedIn === false) {
+      router.replace('/onboarding/welcome');
+    }
+  }, [isLoggedIn]);
+
+  // Update local plan state when user data changes
+  useEffect(() => {
+    if (userData?.plan) {
+      const { calories = 0, protein = 0, carbs = 0, fat = 0 } = userData.plan;
+      setPlan({ calories, protein, carbs, fat });
+    } else {
+      setPlan(null);
+    }
+  }, [userData]);
 
   const openEdit = () => {
     if (plan) {
@@ -72,18 +68,38 @@ export default function HomeScreen() {
   };
 
   const saveEdit = async () => {
-    if (!auth.currentUser) return;
-    const uid = auth.currentUser.uid;
+    if (!userId || !userData?.plan) return;
     const calories = parseInt(editCalories || '0', 10);
     const protein = parseInt(editProtein || '0', 10);
     const carbs = parseInt(editCarbs || '0', 10);
     const fat = parseInt(editFat || '0', 10);
     setSaving(true);
     try {
-      const ref = doc(db, 'users', uid);
-      await setDoc(ref, { plan: { calories, protein, carbs, fat } } as any, { merge: true } as any);
+      // Include all existing plan fields to avoid overwriting them
+      await updatePlanMutation({
+        userId,
+        plan: { 
+          calories, 
+          protein, 
+          carbs, 
+          fat,
+          bmr: userData.plan.bmr,
+          tdee: userData.plan.tdee,
+          goal: userData.plan.goal,
+          currentWeight: userData.plan.currentWeight,
+          desiredWeight: userData.plan.desiredWeight,
+        },
+      });
+      
+      // Update local state immediately (optimistic update)
+      setPlan({ calories, protein, carbs, fat });
+      
       console.log('Updated plan', { calories, protein, carbs, fat });
-      setIsEditOpen(false);
+      
+      // Wait a bit for Convex to propagate before closing
+      setTimeout(() => {
+        setIsEditOpen(false);
+      }, 300);
     } catch (e) {
       console.error('Failed to save edited plan:', e);
     } finally {
@@ -92,16 +108,16 @@ export default function HomeScreen() {
   };
 
   // Removed day selector pills (F S S M T W T)
-
-  const uid = auth.currentUser?.uid;
+  // Use Convex hooks
   const { 
     recentlyEaten, 
     dailyTotals,
     todayData,
     yesterdayData,
-    loading
-  } = useDailyNutrition(uid, selectedTab);
-  const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(uid);
+    loading,
+    getProgressPercentages,
+  } = useDailyNutrition(userId, selectedTab);
+  const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(userId);
 
   // Debug logging for iOS
   useEffect(() => {

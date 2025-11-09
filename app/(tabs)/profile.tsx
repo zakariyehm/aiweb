@@ -1,7 +1,9 @@
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
+import { useAuth } from '@/hooks/useAuth';
 import useStreak from '@/hooks/useStreak';
-import { auth, db } from '@/lib/firebase';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { doc, getDoc } from 'firebase/firestore';
+import { useQuery } from 'convex/react';
 import React, { useEffect, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,35 +35,25 @@ interface NutritionPlan {
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const { userSession } = useAuth();
+  const userId = userSession?.userId as Id<"users"> | undefined;
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Get streak data from home screen
-  const uid = auth.currentUser?.uid;
-  const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(uid);
+  // Get streak data
+  const { count: streakCount, atRisk: streakAtRisk, broken: streakBroken } = useStreak(userId);
+  
+  // Fetch user data (reactive)
+  const userData = useQuery(api.users.get, userId ? { userId } : "skip");
 
   useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  const fetchUserData = async () => {
-    try {
-      const user = auth.currentUser;
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setUserProfile(data.profile || {});
-          setNutritionPlan(data.plan || null);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-    } finally {
+    if (userData) {
+      setUserProfile(userData.profile || {});
+      setNutritionPlan(userData.plan || null);
       setLoading(false);
     }
-  };
+  }, [userData]);
 
 
 

@@ -1,10 +1,15 @@
+/**
+ * Personal Info / Onboarding Screen - Convex Version
+ * Replaces Firebase with Convex for user creation and data storage
+ */
+
 import DailyRecommendationCard, { Recommendation } from '@/components/DailyRecommendationCard';
-import { auth, db } from '@/lib/firebase';
+import { api } from '@/convex/_generated/api';
+import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
+import { useMutation } from 'convex/react';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { createUserWithEmailAndPassword, signInAnonymously, updateProfile } from 'firebase/auth';
-import { arrayUnion, doc, getDoc, increment, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -140,7 +145,6 @@ const validateWeight = (value: string): { isValid: boolean; error: string } => {
   return { isValid: true, error: '' };
 };
 
-// Add new validation functions
 const validateDesiredWeight = (value: string): { isValid: boolean; error: string } => {
   if (!value.trim()) {
     return { isValid: false, error: 'Desired weight is required' };
@@ -157,6 +161,7 @@ const validateDesiredWeight = (value: string): { isValid: boolean; error: string
 
 const OnboardingScreen = () => {
   const insets = useSafeAreaInsets();
+  const { login } = useAuth();
   const [step, setStep] = useState(0);
   const [currentValue, setCurrentValue] = useState('');
   const [onboardingData, setOnboardingData] = useState<Record<string, any>>({});
@@ -175,6 +180,12 @@ const OnboardingScreen = () => {
   const [currentOperation, setCurrentOperation] = useState('');
   const [showSkipLoading, setShowSkipLoading] = useState(false);
   const [referralCode, setReferralCode] = useState('');
+
+  // Convex mutations
+  const signUpMutation = useMutation(api.auth.signUp);
+  const signInAnonymouslyMutation = useMutation(api.auth.signInAnonymously);
+  const generatePromoCodeMutation = useMutation(api.referrals.generatePromoCode);
+  const applyReferralCodeMutation = useMutation(api.referrals.applyReferralCode);
 
   const questions = [
     { key: 'firstName', title: "What's your first name?", type: 'input', keyboard: 'default' as const, placeholder: 'John' },
@@ -390,162 +401,61 @@ const OnboardingScreen = () => {
 
   const handleGoogleSignIn = () => {
     setAccountLoading(true);
-    // Simulate Google sign-in process
+    setAccountError('Google sign-in not yet implemented with Convex.');
     setTimeout(() => {
       setAccountLoading(false);
-      router.replace('/(tabs)');
     }, 2000);
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     setShowSkipLoading(true);
-    // Create an anonymous account and persist the collected onboarding data
-    signInAnonymously(auth)
-      .then(async (cred) => {
-        const uid = cred.user.uid;
-        const plan = planGenerated ? (() => {
-          const base = generatePlan();
-          const edits = (onboardingData as any).edits || {};
-          return {
-            calories: edits.calories ?? base.calories,
-            protein: edits.protein ?? base.protein,
-            carbs: edits.carbs ?? base.carbs,
-            fat: edits.fat ?? base.fat,
-            bmr: base.bmr,
-            tdee: base.tdee,
-            goal: base.goal,
-            currentWeight: base.currentWeight,
-            desiredWeight: base.desiredWeight,
-          };
-        })() : null;
-        await setDoc(doc(db, 'users', uid), {
-          profile: {
-            ...onboardingData,
-          },
-          plan,
-          createdAt: serverTimestamp(),
-          isGuest: true,
-        }, { merge: true });
-        setShowSkipLoading(false);
-        router.replace('/(tabs)');
-      })
-      .catch((err) => {
-        setShowSkipLoading(false);
-        const code = (err && (err.code || err?.message)) || '';
-        if (String(code).includes('auth/operation-not-allowed')) {
-          setAccountError('Please enable Anonymous sign-in in Firebase Authentication to use Skip.');
-        } else {
-          setAccountError('Failed to skip. Please try again.');
-        }
-      });
-  };
-
-  const saveUserToFirestore = async (uid: string, userEmail?: string | null) => {
-    // Generate a unique username without requiring cross-user reads
-    const proposedBase = (onboardingData.firstName || 'user').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '') || 'user';
-    const uniqueUsername = `${proposedBase}.${uid.slice(0, 6).toLowerCase()}`;
-    const plan = planGenerated ? (() => {
-      const base = generatePlan();
-      const edits = (onboardingData as any).edits || {};
-      return {
-        calories: edits.calories ?? base.calories,
-        protein: edits.protein ?? base.protein,
-        carbs: edits.carbs ?? base.carbs,
-        fat: edits.fat ?? base.fat,
-        bmr: base.bmr,
-        tdee: base.tdee,
-        goal: base.goal,
-        currentWeight: base.currentWeight,
-        desiredWeight: base.desiredWeight,
-      };
-    })() : null;
-    await setDoc(doc(db, 'users', uid), {
-      profile: {
-        ...onboardingData,
-        email: userEmail ?? onboardingData.email ?? '',
-        username: uniqueUsername,
-      },
-      plan,
-      createdAt: serverTimestamp(),
-      isGuest: false,
-    }, { merge: true });
-
-    // Reserve a personal promo code for this user and initialize referral info
-    await reservePromoCodeForUser(uid, String(onboardingData.firstName || ''));
-    // If a referral code was entered, apply referral rewards
-    await applyReferralIfAny(uid);
-  };
-
-  // Generate and reserve a promo code for the new user
-  const reservePromoCodeForUser = async (uid: string, firstName: string) => {
-    const base = (firstName || 'N').trim().toUpperCase()[0] || 'N';
-    let attempts = 0;
-    let code = '';
-    while (attempts < 6) {
-      const num = Math.floor(100 + Math.random() * 900); // 100-999
-      code = `${base}${num}`;
-      const codeRef = doc(db, 'promoCodes', code);
-      const exists = await getDoc(codeRef);
-      if (!exists.exists()) {
-        await setDoc(codeRef, { uid, code, createdAt: serverTimestamp() }, { merge: false });
-        // Initialize referral info on the user
-        await setDoc(doc(db, 'users', uid), {
-          referral: {
-            promoCode: code,
-            referredCount: 0,
-            earningsCents: 0,
-            referredPeople: [],
-          }
-        }, { merge: true });
-        return;
-      }
-      attempts++;
-    }
-    // Fallback unique code based on uid
-    const fallback = `${base}${uid.slice(0, 5).toUpperCase()}`;
-    const fallbackRef = doc(db, 'promoCodes', fallback);
-    await setDoc(fallbackRef, { uid, code: fallback, createdAt: serverTimestamp() }, { merge: true });
-    await setDoc(doc(db, 'users', uid), {
-      referral: {
-        promoCode: fallback,
-        referredCount: 0,
-        earningsCents: 0,
-        referredPeople: [],
-      }
-    }, { merge: true });
-  };
-
-  // Apply referral rewards if the user entered a valid code
-  const applyReferralIfAny = async (uid: string) => {
-    const raw = String(referralCode || '').trim().toUpperCase();
-    if (!raw) return;
+    
     try {
-      const codeRef = doc(db, 'promoCodes', raw);
-      const snap = await getDoc(codeRef);
-      if (!snap.exists()) return;
-      const referrerId = String(snap.data()?.uid || '');
-      if (!referrerId || referrerId === uid) return;
+      const plan = planGenerated ? generatePlan() : undefined;
+      const edits = (onboardingData as any).edits || {};
+      
+      // Create anonymous account with Convex
+      const result = await signInAnonymouslyMutation({
+        profile: {
+          firstName: onboardingData.firstName,
+          age: onboardingData.age,
+          height: onboardingData.height,
+          weight: onboardingData.weight,
+          gender: onboardingData.gender,
+          workouts: onboardingData.workouts,
+          goal: onboardingData.goal,
+          desiredWeight: onboardingData.desiredWeight,
+          obstacles: onboardingData.obstacles,
+          specificGoal: onboardingData.specificGoal,
+          accomplishments: onboardingData.accomplishments,
+          source: onboardingData.source,
+        },
+        plan: plan ? {
+          calories: edits.calories ?? plan.calories,
+          protein: edits.protein ?? plan.protein,
+          carbs: edits.carbs ?? plan.carbs,
+          fat: edits.fat ?? plan.fat,
+          bmr: plan.bmr,
+          tdee: plan.tdee,
+          goal: plan.goal,
+          currentWeight: plan.currentWeight,
+          desiredWeight: plan.desiredWeight,
+        } : undefined,
+      });
 
-      const referrerUserRef = doc(db, 'users', referrerId);
-      const newUserRef = doc(db, 'users', uid);
-      const batch = writeBatch(db);
-      // Update referrer referral info (only 'referral' key per rules)
-      batch.set(referrerUserRef, {
-        referral: {
-          referredCount: increment(1),
-          earningsCents: increment(100),
-          referredPeople: arrayUnion(uid),
-        }
-      }, { merge: true });
-      // Update new user's referral metadata (no earnings for the new user)
-      batch.set(newUserRef, {
-        referral: {
-          usedReferrerId: referrerId,
-          usedReferrerCode: raw,
-        }
-      }, { merge: true });
-      await batch.commit();
-    } catch {}
+      // Save session
+      await login({
+        userId: result.userId,
+        isGuest: true,
+        displayName: onboardingData.firstName || 'Guest',
+      });
+
+      setShowSkipLoading(false);
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      setShowSkipLoading(false);
+      setAccountError(err?.message || 'Failed to skip. Please try again.');
+    }
   };
 
   const handleEmailPasswordSignUp = async () => {
@@ -557,33 +467,84 @@ const OnboardingScreen = () => {
     setAccountError('');
     setAccountInfo('');
     setAccountLoading(true);
+    
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password.trim());
-      const firstName = onboardingData.firstName || 'User';
-      try { await updateProfile(cred.user, { displayName: firstName }); } catch {}
-      await saveUserToFirestore(cred.user.uid, cred.user.email ?? email.trim());
+      const plan = planGenerated ? generatePlan() : undefined;
+      const edits = (onboardingData as any).edits || {};
+
+      // Create account with Convex
+      const result = await signUpMutation({
+        email: email.trim(),
+        password: password.trim(),
+        profile: {
+          firstName: onboardingData.firstName,
+          age: onboardingData.age,
+          height: onboardingData.height,
+          weight: onboardingData.weight,
+          gender: onboardingData.gender,
+          workouts: onboardingData.workouts,
+          goal: onboardingData.goal,
+          desiredWeight: onboardingData.desiredWeight,
+          obstacles: onboardingData.obstacles,
+          specificGoal: onboardingData.specificGoal,
+          accomplishments: onboardingData.accomplishments,
+          source: onboardingData.source,
+          email: email.trim(),
+        },
+        plan: plan ? {
+          calories: edits.calories ?? plan.calories,
+          protein: edits.protein ?? plan.protein,
+          carbs: edits.carbs ?? plan.carbs,
+          fat: edits.fat ?? plan.fat,
+          bmr: plan.bmr,
+          tdee: plan.tdee,
+          goal: plan.goal,
+          currentWeight: plan.currentWeight,
+          desiredWeight: plan.desiredWeight,
+        } : undefined,
+      });
+
+      // Generate promo code for new user
+      await generatePromoCodeMutation({
+        userId: result.userId,
+        firstName: onboardingData.firstName || 'User',
+      });
+
+      // Apply referral code if provided
+      if (referralCode.trim()) {
+        try {
+          await applyReferralCodeMutation({
+            newUserId: result.userId,
+            referralCode: referralCode.trim(),
+          });
+        } catch (refErr) {
+          console.log('Referral code application failed:', refErr);
+        }
+      }
+
+      // Save session
+      await login({
+        userId: result.userId,
+        email: email.trim(),
+        displayName: onboardingData.firstName || 'User',
+      });
+
       setAccountLoading(false);
       setAccountInfo('Account created successfully. Redirecting...');
       setTimeout(() => router.replace('/(tabs)'), 800);
     } catch (err: any) {
       setAccountLoading(false);
       setAccountInfo('');
-      const code = err?.code as string | undefined;
-      switch (code) {
-        case 'auth/operation-not-allowed':
-          setAccountError('Enable Email/Password in Firebase → Authentication → Sign-in method.');
-          break;
-        case 'auth/email-already-in-use':
-          setAccountError('This email is already in use. Try signing in.');
-          break;
-        case 'auth/invalid-email':
-          setAccountError('Invalid email address.');
-          break;
-        case 'auth/weak-password':
-          setAccountError('Password should be at least 6 characters.');
-          break;
-        default:
-          setAccountError(err?.message || 'Failed to create account');
+      
+      const errorMsg = err?.message || String(err);
+      if (errorMsg.includes('already in use')) {
+        setAccountError('This email is already in use. Try signing in.');
+      } else if (errorMsg.includes('invalid')) {
+        setAccountError('Invalid email address.');
+      } else if (errorMsg.includes('password')) {
+        setAccountError('Password should be at least 6 characters.');
+      } else {
+        setAccountError(err?.message || 'Failed to create account');
       }
     }
   };
@@ -790,6 +751,9 @@ const OnboardingScreen = () => {
               <Text style={styles.googleIcon}>G</Text>
               <Text style={styles.googleButtonText}>Sign in with Google</Text>
             </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.skipButton, { marginTop: 12 }]} onPress={handleSkip}>
+            <Text style={styles.skipText}>Skip for now</Text>
           </TouchableOpacity>
         </View>
       );
@@ -1471,5 +1435,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontWeight: '500',
   },
-});export default OnboardingScreen;
+});
 
+export default OnboardingScreen;

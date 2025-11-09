@@ -1,11 +1,15 @@
+/**
+ * Sign In Screen - Convex Version
+ * Replaces Firebase Authentication with Convex
+ */
+
 import { Colors } from '@/constants/Colors';
+import { api } from '@/convex/_generated/api';
 import { useAuth } from '@/hooks/useAuth';
-import { auth, db } from '@/lib/firebase';
 import { FontAwesome } from '@expo/vector-icons';
+import { useMutation } from 'convex/react';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { fetchSignInMethodsForEmail, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +23,9 @@ export default function SignInScreen() {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
 
+  // Convex mutation for sign in
+  const signInMutation = useMutation(api.auth.signIn);
+
   const handleSignIn = async () => {
     if (!email || !password) {
       setErrorMessage('Please fill in both email and password.');
@@ -27,87 +34,54 @@ export default function SignInScreen() {
     }
 
     setIsLoading(true);
+    setErrorMessage('');
+    setInfoMessage('');
+
     try {
-      const cred = await signInWithEmailAndPassword(auth, email.trim(), password.trim());
-      const userDoc = await getDoc(doc(db, 'users', cred.user.uid));
-      if (!userDoc.exists()) {
-        setIsLoading(false);
-        setErrorMessage('We could not find your profile. Please create your account first.');
-        setInfoMessage('');
-        return;
-      }
-      
-      // Save user data and navigate to home
-      await login({
-        uid: cred.user.uid,
-        email: cred.user.email,
-        displayName: userDoc.data()?.displayName || cred.user.displayName,
+      // Call Convex sign in mutation
+      const result = await signInMutation({
+        email: email.trim(),
+        password: password.trim(),
       });
-      
+
+      if (!result || !result.userId) {
+        throw new Error('Invalid response from server');
+      }
+
+      // Save session locally
+      await login({
+        userId: result.userId,
+        email: result.email,
+        displayName: result.profile?.firstName || result.profile?.name || 'User',
+      });
+
       setIsLoading(false);
-      setErrorMessage('');
       setInfoMessage('Signed in successfully. Redirecting...');
-      
+
       // Navigate to home after successful login
       setTimeout(() => router.replace('/(tabs)'), 1000);
     } catch (error: any) {
       setIsLoading(false);
       setInfoMessage('');
-      const code = error?.code as string | undefined;
-      if (code === 'auth/invalid-email') {
-        setErrorMessage('Invalid email address.');
-        return;
-      }
-      if (code === 'auth/user-disabled') {
-        setErrorMessage('This account has been disabled.');
-        return;
-      }
-      if (code === 'auth/too-many-requests') {
-        setErrorMessage('Too many attempts. Try again later.');
-        return;
-      }
-      if (code === 'auth/network-request-failed') {
+
+      const errorMsg = error?.message || String(error);
+
+      if (errorMsg.includes('User not found')) {
+        setErrorMessage('No account found for this email. Please create an account.');
+      } else if (errorMsg.includes('password') || errorMsg.includes('credentials')) {
+        setErrorMessage('Incorrect password. Please try again.');
+      } else if (errorMsg.includes('network') || errorMsg.includes('Network')) {
         setErrorMessage('Network error. Check your connection and try again.');
-        return;
+      } else {
+        setErrorMessage('Sign in failed. Please try again.');
       }
-      if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
-        try {
-          const methods = await fetchSignInMethodsForEmail(auth, email.trim());
-          if (!methods || methods.length === 0) {
-            setErrorMessage('No account found for this email. Please create an account.');
-          } else if (methods.includes('password')) {
-            setErrorMessage('Incorrect password. Please try again.');
-          } else {
-            setErrorMessage('This email is registered with a different sign-in method.');
-          }
-        } catch {
-          setErrorMessage('Sign in failed. Please try again.');
-        }
-        return;
-      }
-      setErrorMessage('Sign in failed. Please try again.');
     }
   };
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    try {
-      // TODO: Implement Google sign in logic
-      // For now, simulate a successful login
-      await login({
-        uid: 'google-user-123',
-        email: 'user@gmail.com',
-        displayName: 'Google User',
-      });
-      
-      setTimeout(() => {
-        setIsLoading(false);
-        router.replace('/(tabs)');
-      }, 1000);
-    } catch (error) {
-      setIsLoading(false);
-      setErrorMessage('Google sign in failed. Please try again.');
-    }
+    setErrorMessage('Google sign-in not yet implemented with Convex.');
+    setIsLoading(false);
   };
 
   const handleBackToWelcome = () => {
@@ -117,8 +91,6 @@ export default function SignInScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + 16 }]}>
       <View style={[styles.content, Platform.OS === 'android' && { paddingTop: 20 }]}>
-        {/* Header removed – using native app bar */}
-
         {/* Logo */}
         <View style={styles.logoContainer}>
           <Image
@@ -159,8 +131,8 @@ export default function SignInScreen() {
           </View>
 
           {/* Continue Button */}
-          <TouchableOpacity 
-            style={[styles.continueButton, isLoading && styles.disabledButton]} 
+          <TouchableOpacity
+            style={[styles.continueButton, isLoading && styles.disabledButton]}
             onPress={handleSignIn}
             disabled={isLoading}
           >
@@ -194,16 +166,14 @@ export default function SignInScreen() {
 
         {/* Alternative Sign In Methods */}
         <View style={styles.alternativeMethods}>
-          <TouchableOpacity 
-            style={[styles.socialButton, isLoading && styles.disabledButton]} 
+          <TouchableOpacity
+            style={[styles.socialButton, isLoading && styles.disabledButton]}
             onPress={handleGoogleSignIn}
             disabled={isLoading}
           >
             <FontAwesome name="google" size={20} color="#DB4437" />
             <Text style={styles.socialButtonText}>Continue with Google</Text>
           </TouchableOpacity>
-
-          {/* Phone sign-in removed */}
         </View>
 
         {/* Footer Links */}

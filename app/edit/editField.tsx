@@ -1,4 +1,7 @@
-import { auth, db } from '@/lib/firebase';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
+import { useAuth } from '@/hooks/useAuth';
+import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -9,6 +12,9 @@ export default function EditFieldModal() {
   const field = String(params.field || '');
   const label = String(params.label || field || 'Edit');
   const initialValue = String(params.value || '');
+  const { userSession } = useAuth();
+  const userId = userSession?.userId as Id<"users"> | undefined;
+  
   const keyboardType = useMemo(() => {
     if (field === 'age') return 'numeric';
     if (field === 'phone') return 'phone-pad';
@@ -30,6 +36,12 @@ export default function EditFieldModal() {
   // Phone state
   const [phoneCountryCode, setPhoneCountryCode] = useState<string>('+1');
   const [phoneNational, setPhoneNational] = useState<string>('');
+  
+  // Convex mutations & queries
+  const updateFieldMutation = useMutation(api.users.updateField);
+  const updateUsernameMutation = useMutation(api.users.updateUsername);
+  const checkUsernameAvailability = useMutation(api.usernames.checkAvailability);
+  const userData = useQuery(api.users.get, userId ? { userId } : "skip");
 
   useEffect(() => {
     nav.setOptions({ title: label || 'Edit' });
@@ -54,44 +66,33 @@ export default function EditFieldModal() {
 
   // Load current profile policy for username screen (hint + cooldown)
   useEffect(() => {
-    if (field !== 'username') return;
-    (async () => {
-      try {
-        const { doc, getDoc } = require('firebase/firestore');
-        const user = auth.currentUser;
-        if (!user) return;
-        const ref = doc(db, 'users', user.uid);
-        const snap = await getDoc(ref);
-        const data = snap.exists() ? snap.data() : {};
-        const p: any = data.profile || {};
-        const lower = String(p.username || '').toLowerCase();
-        setCurrentLower(lower);
-        const manual = Boolean(p.usernameManualChanged);
-        setHasManualChanged(manual);
-        let lastMs: number | undefined = undefined;
-        // Prefer usernameManualChangedAt; fall back to lastUsernameChangeAt for backward compatibility
-        const lastAny = p.usernameManualChangedAt || p.lastUsernameChangeAt;
-        if (typeof lastAny === 'number') lastMs = lastAny;
-        else if (lastAny && typeof lastAny.toMillis === 'function') lastMs = lastAny.toMillis();
-        console.log('[Username] Load policy', { manual, lastMs, lower });
-        if (manual && lastMs) {
-          const next = new Date(lastMs + 365 * 24 * 60 * 60 * 1000);
-          setCooldownUntil(next);
-          setUsernameHint(`You can change your username again on ${next.toLocaleDateString()}.`);
-        } else if (!manual) {
-          setUsernameHint('You have one free change available.');
-        } else {
-          setUsernameHint('You can now change your username.');
-        }
-      } catch (e) {
-        console.warn('[Username] Failed to load policy', e);
-      }
-    })();
-  }, [field]);
+    if (field !== 'username' || !userData) return;
+    
+    const p: any = userData.profile || {};
+    const lower = String(p.username || '').toLowerCase();
+    setCurrentLower(lower);
+    const manual = Boolean(p.usernameManualChanged);
+    setHasManualChanged(manual);
+    
+    let lastMs: number | undefined = undefined;
+    const lastAny = p.usernameManualChangedAt || p.lastUsernameChangeAt;
+    if (typeof lastAny === 'number') lastMs = lastAny;
+    
+    console.log('[Username] Load policy', { manual, lastMs, lower });
+    if (manual && lastMs) {
+      const next = new Date(lastMs + 365 * 24 * 60 * 60 * 1000);
+      setCooldownUntil(next);
+      setUsernameHint(`You can change your username again on ${next.toLocaleDateString()}.`);
+    } else if (!manual) {
+      setUsernameHint('You have one free change available.');
+    } else {
+      setUsernameHint('You can now change your username.');
+    }
+  }, [field, userData]);
 
   // Debounced availability check while typing
   useEffect(() => {
-    if (field !== 'username') return;
+    if (field !== 'username' || !userId) return;
     const proposed = String(value || '').trim();
     const lower = proposed.toLowerCase();
     if (!proposed) {
@@ -110,143 +111,89 @@ export default function EditFieldModal() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const { doc, getDoc } = require('firebase/firestore');
-        const usernameRef = doc(db, 'usernames', lower);
-        const snap = await getDoc(usernameRef);
-        const uid = auth.currentUser?.uid;
-        if (!snap.exists()) {
-          console.log('[Username] Availability', { lower, state: 'available' });
-          setAvailability('available');
-        } else if (uid && snap.data()?.uid === uid) {
-          console.log('[Username] Availability', { lower, state: 'own' });
-          setAvailability('own');
-        } else {
-          console.log('[Username] Availability', { lower, state: 'taken' });
-          setAvailability('taken');
-        }
+        const result = await checkUsernameAvailability({ username: lower, userId });
+        console.log('[Username] Availability', { lower, result });
+        setAvailability(result.available ? 'available' : 'taken');
       } catch {
         setAvailability('idle');
       }
     }, 350);
     return () => debounceRef.current && clearTimeout(debounceRef.current);
-  }, [value, field, currentLower]);
+  }, [value, field, currentLower, userId, checkUsernameAvailability]);
 
   const save = async () => {
-    if (!field) return router.back();
+    if (!field || !userId) return router.back();
     try {
       setSaving(true);
-      const { doc, setDoc, getDoc, serverTimestamp, writeBatch } = require('firebase/firestore');
-      const user = auth.currentUser;
-      if (!user) throw new Error('Not signed in');
 
-      // Handle password change using Firebase Auth
+      // Handle password change
       if (field === 'password') {
-        const email = user.email;
-        if (!email) throw new Error('Missing email for reauthentication');
         if (!currentPassword || !newPassword) throw new Error('Enter current and new password');
         if (newPassword.length < 6) throw new Error('New password must be at least 6 characters');
         if (newPassword === currentPassword) throw new Error('New password must be different');
-        try {
-          const { EmailAuthProvider, reauthenticateWithCredential, updatePassword } = require('firebase/auth');
-          const cred = EmailAuthProvider.credential(email, currentPassword);
-          await reauthenticateWithCredential(user, cred);
-          await updatePassword(user, newPassword);
-          console.log('[Password] Updated successfully');
-          router.replace('/(tabs)/settings');
-          return;
-        } catch (e: any) {
-          console.warn('[Password] Update error', e?.code || e?.message);
-          const code = e?.code || '';
-          if (code === 'auth/wrong-password') throw new Error('Current password is incorrect');
-          if (code === 'auth/weak-password') throw new Error('New password is too weak');
-          throw new Error('Could not update password. Please try again.');
-        }
+        
+        // TODO: Implement password update in Convex
+        console.log('[Password] Update not yet implemented with Convex');
+        Alert.alert('Not Implemented', 'Password updates coming soon!');
+        router.replace('/(tabs)/settings');
+        return;
       }
-      const ref = doc(db, 'users', user.uid);
-      const snap = await getDoc(ref);
-      const data = snap.exists() ? snap.data() : {};
-      const profile = { ...(data.profile || {}) };
+
       let coerced: any = value;
       if (field === 'age') {
         const n = Number(value);
         coerced = Number.isFinite(n) ? n : undefined;
       }
 
+      // Handle username update
       if (field === 'username') {
         const proposed = String(value || '').trim();
         const lower = proposed.toLowerCase();
-        // Basic validation: 3-20 chars, letters numbers dot underscore only
+        
+        // Basic validation
         if (!/^[a-z0-9._]{3,20}$/.test(lower)) {
           throw new Error('Invalid username. Use 3-20 letters, numbers, dot, or underscore.');
         }
+        
         // If not changing, no-op
-        if ((profile.username || '').toLowerCase() === lower) {
+        if ((userData?.profile?.username || '').toLowerCase() === lower) {
           router.replace('/(tabs)/settings');
           return;
         }
-        // Enforce one-time free manual change, then once-per-year afterwards
+        
+        // Enforce cooldown
         const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
-        const manualChanged = Boolean((profile as any).usernameManualChanged);
+        const manualChanged = Boolean((userData?.profile as any)?.usernameManualChanged);
         let lastMs: number | undefined = undefined;
-        const lastAny = (profile as any).usernameManualChangedAt || (profile as any).lastUsernameChangeAt;
+        const lastAny = (userData?.profile as any)?.usernameManualChangedAt || (userData?.profile as any)?.lastUsernameChangeAt;
         if (typeof lastAny === 'number') lastMs = lastAny;
-        else if (lastAny && typeof lastAny.toMillis === 'function') lastMs = lastAny.toMillis();
+        
         if (manualChanged && lastMs && Date.now() - lastMs < YEAR_MS) {
           const nextDate = new Date(lastMs + YEAR_MS).toLocaleDateString();
           throw new Error(`You can change your username again on ${nextDate}.`);
         }
-        // Reserve username using a usernames/{lower} doc to avoid cross-user queries
-        const usernameRef = doc(db, 'usernames', lower);
-        const currentRef = (profile.usernameLower ? doc(db, 'usernames', String(profile.usernameLower)) : null);
-        const existing = await getDoc(usernameRef);
-        if (existing.exists() && existing.data()?.uid !== user.uid) {
-          throw new Error('Username not available. Please choose another.');
-        }
-
-        const batch = writeBatch(db);
-        // Point username to current user
-        batch.set(usernameRef, { uid: user.uid, updatedAt: serverTimestamp() });
-        // Clean old mapping if changing
-        if (currentRef && ((profile.usernameLower || '').toLowerCase() !== lower)) {
-          try {
-            const oldSnap = await getDoc(currentRef);
-            if (oldSnap.exists() && oldSnap.data()?.uid === user.uid) {
-              batch.delete(currentRef);
-            } else {
-              console.log('[Username] No owned old mapping to delete or missing doc');
-            }
-          } catch (e) {
-            console.warn('[Username] Failed to read old mapping', e);
-          }
-        }
-        // Update profile fields
-        profile.username = proposed;
-        (profile as any).usernameLower = lower;
-        (profile as any).usernameManualChangedAt = serverTimestamp();
-        if (!manualChanged) {
-          (profile as any).usernameManualChanged = true;
-        }
-        coerced = undefined; // handled above
-        batch.set(ref, { profile }, { merge: true });
-        await batch.commit();
+        
+        // Update via Convex
+        await updateUsernameMutation({ userId, newUsername: proposed });
         router.replace('/(tabs)/settings');
         return;
       }
+
+      // Handle phone update
       if (field === 'phone') {
         const code = phoneCountryCode.startsWith('+') ? phoneCountryCode : `+${phoneCountryCode}`;
         const digits = String(phoneNational).replace(/\D/g, '');
         const e164 = `${code}${digits}`;
         const valid = /^\+[1-9]\d{7,14}$/.test(e164);
         if (!valid) throw new Error('Enter a valid phone with country code.');
-        (profile as any).phone = e164;
-        (profile as any).phoneCountryCode = code;
-        (profile as any).phoneNational = digits;
-        await setDoc(ref, { profile }, { merge: true });
+        
+        await updateFieldMutation({ userId, field: 'phone', value: e164 });
         router.replace('/(tabs)/settings');
         return;
       }
-      profile[field] = coerced;
-      await setDoc(ref, { profile }, { merge: true });
+
+      // Handle all other fields
+      await updateFieldMutation({ userId, field, value: coerced });
       router.replace('/(tabs)/settings');
     } catch (e: any) {
       Alert.alert('Save failed', e?.message || 'Please try again');
@@ -436,4 +383,3 @@ const styles = StyleSheet.create({
   },
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });
-

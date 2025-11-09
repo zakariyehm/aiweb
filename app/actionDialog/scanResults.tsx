@@ -1,6 +1,7 @@
+import type { Id } from '@/convex/_generated/dataModel';
+import { useAuth } from '@/hooks/useAuth';
 import useDailyNutrition from '@/hooks/useDailyNutrition';
 import useStreak from '@/hooks/useStreak';
-import { auth } from '@/lib/firebase';
 import { ScanResult } from '@/types/scan';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -11,9 +12,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function ScanResultsModal() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
-  const uid = auth.currentUser?.uid || undefined;
-  const { markDone } = useStreak(uid);
-  const { addFoodEntry } = useDailyNutrition(uid);
+  const { userSession } = useAuth();
+  const userId = userSession?.userId as Id<"users"> | undefined;
+  const { markDone } = useStreak(userId);
+  const { addFoodEntry } = useDailyNutrition(userId);
   const slideAnim = useRef(new Animated.Value(50)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
   const [formattedTime, setFormattedTime] = useState<string>('');

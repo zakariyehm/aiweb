@@ -1,8 +1,10 @@
-import { auth, db } from '@/lib/firebase';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
+import { useAuth } from '@/hooks/useAuth';
 import { FontAwesome } from '@expo/vector-icons';
-import { arrayUnion, collection, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
+import { useMutation, useQuery } from 'convex/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface WeeklyNutrition {
@@ -28,11 +30,29 @@ interface DailyNutrition {
 export default function AnalyticsScreen() {
   const [selectedTimeframe, setSelectedTimeframe] = useState('This Week');
   const insets = useSafeAreaInsets();
+  const { userSession } = useAuth();
+  const userId = userSession?.userId as Id<"users"> | undefined;
   const [currentWeek, setCurrentWeek] = useState<WeeklyNutrition | null>(null);
   const [weeklyHistory, setWeeklyHistory] = useState<WeeklyNutrition[]>([]);
   const [dailyData, setDailyData] = useState<DailyNutrition[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Fetch recent meals for analytics (last 30 days)
+  const recentMeals = useQuery(
+    api.meals.getRecent,
+    userId ? { userId, days: 30 } : "skip"
+  );
+  
+  // Convex mutations for weight tracking
+  const logWeightMutation = useMutation(api.users.logWeight);
+  const updateDesiredWeightMutation = useMutation(api.users.updateDesiredWeight);
+  
+  // Check if user can log weight (once per week)
+  const canLogWeightCheck = useQuery(
+    api.users.canLogWeight,
+    userId ? { userId } : "skip"
+  );
   
   // Debounce mechanism to prevent excessive API calls
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
@@ -146,22 +166,14 @@ export default function AnalyticsScreen() {
     return Math.round(Math.min(100, Math.max(0, totalScore)));
   };
 
-  // Data migration function to fix existing meals without date fields
+  // TODO: Data migration function - needs full Convex implementation
   const fixExistingMeals = async (): Promise<void> => {
-    if (!auth.currentUser) return;
+    if (!userId) return;
 
     try {
-      // Get all meals without date field
-      const mealsQuery = query(
-        collection(db, 'users', auth.currentUser.uid, 'meals'),
-        where('date', '==', null)
-      );
-
-      const snapshot = await getDocs(mealsQuery);
-      if (snapshot.empty) return;
-
-      const batch = writeBatch(db);
-      let fixedCount = 0;
+      // TODO: Implement with Convex
+      console.log('Fix existing meals - needs Convex implementation');
+      return;
 
       snapshot.docs.forEach(doc => {
         const meal = doc.data();
@@ -186,7 +198,7 @@ export default function AnalyticsScreen() {
 
   // Fetch weekly nutrition data with fallback logic
   const fetchWeeklyNutrition = async (weekStart: string, weekEnd: string): Promise<WeeklyNutrition> => {
-    if (!auth.currentUser) {
+    if (!userId || !recentMeals) {
       return {
         weekStart,
         totalCalories: 0,
@@ -201,41 +213,20 @@ export default function AnalyticsScreen() {
     }
 
     try {
-      // Primary query: try to fetch meals with date field
-      let mealsQuery = query(
-        collection(db, 'users', auth.currentUser.uid, 'meals'),
-        where('date', '>=', weekStart),
-        where('date', '<=', weekEnd),
-        orderBy('date', 'asc')
+      // Debug: Show available meals
+      console.log('[Analytics] Filtering meals for week:', { 
+        weekStart, 
+        weekEnd, 
+        totalMealsAvailable: recentMeals?.length || 0,
+        sampleMealDates: recentMeals?.slice(0, 3).map((m: any) => m.date) || []
+      });
+
+      // Use Convex data - filter meals by date range
+      let meals = recentMeals.filter((meal: any) => 
+        meal.date >= weekStart && meal.date <= weekEnd
       );
 
-      let snapshot = await getDocs(mealsQuery);
-      let meals = snapshot.docs.map(doc => doc.data());
-
-      // Fallback: if no meals found, fetch all meals and filter by createdAt
-      if (meals.length === 0) {
-        const allMealsQuery = query(
-          collection(db, 'users', auth.currentUser.uid, 'meals'),
-          orderBy('createdAt', 'desc'),
-          limit(100) // Limit to prevent excessive data fetching
-        );
-
-        const allSnapshot = await getDocs(allMealsQuery);
-        const allMeals = allSnapshot.docs.map(doc => doc.data());
-
-        // Filter meals within the week range based on createdAt
-        meals = allMeals.filter(meal => {
-          if (!meal.createdAt) return false;
-          
-          try {
-            const timestamp = meal.createdAt.toDate ? meal.createdAt.toDate() : new Date(meal.createdAt);
-            const mealDate = timestamp.toISOString().split('T')[0];
-            return mealDate >= weekStart && mealDate <= weekEnd;
-          } catch {
-            return false;
-          }
-        });
-      }
+      console.log('[Analytics] Meals in range:', meals.length);
 
       // Group meals by date to count unique days
       const uniqueDays = new Set<string>();
@@ -266,18 +257,30 @@ export default function AnalyticsScreen() {
       const daysTracked = uniqueDays.size;
       const isRestWeek = daysTracked === 0;
 
-      // Calculate health score
+      // Calculate health score (pass daily targets, not weekly)
       const healthScore = userPlan ? calculateHealthScore(
         totals.calories,
         totals.protein,
         totals.carbs,
         totals.fat,
         daysTracked,
-        userPlan.calories * 7,
-        userPlan.protein * 7,
-        userPlan.carbs * 7,
-        userPlan.fat * 7
+        userPlan.calories,  // Daily target
+        userPlan.protein,   // Daily target
+        userPlan.carbs,     // Daily target
+        userPlan.fat        // Daily target
       ) : 0;
+
+      // Debug logging
+      console.log('[Analytics] Week Calculation:', {
+        weekStart,
+        weekEnd,
+        mealsFound: meals.length,
+        daysTracked,
+        totalCalories: totals.calories,
+        avgCaloriesPerDay: daysTracked > 0 ? Math.round(totals.calories / daysTracked) : 0,
+        targetCaloriesPerDay: userPlan?.calories || 0,
+        healthScore,
+      });
 
       return {
         weekStart,
@@ -308,20 +311,15 @@ export default function AnalyticsScreen() {
 
   // Fetch daily nutrition data for chart
   const fetchDailyNutrition = async () => {
-    if (!auth.currentUser) return;
+    if (!userId || !recentMeals) return;
 
     try {
       const today = new Date();
       const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+      const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0];
       
-      const mealsQuery = query(
-        collection(db, 'users', auth.currentUser.uid, 'meals'),
-        where('date', '>=', thirtyDaysAgo.toISOString().split('T')[0]),
-        orderBy('date', 'asc')
-      );
-
-      const snapshot = await getDocs(mealsQuery);
-      const meals = snapshot.docs.map(doc => doc.data());
+      // Use Convex data
+      const meals = recentMeals.filter((meal: any) => meal.date >= cutoffDate);
 
       // Group by date and calculate daily totals
       const dailyMap = new Map<string, DailyNutrition>();
@@ -354,6 +352,11 @@ export default function AnalyticsScreen() {
 
   // Debounced data loading function
   const debouncedLoadData = useCallback(async () => {
+    if (!userId || !recentMeals) {
+      setLoading(false);
+      return;
+    }
+    
     const now = Date.now();
     if (now - lastFetchTime < FETCH_COOLDOWN) {
       return; // Still in cooldown period
@@ -362,9 +365,6 @@ export default function AnalyticsScreen() {
     setLastFetchTime(now);
     
     try {
-      // Run data migration first
-      await fixExistingMeals();
-      
       const weekStart = getWeekStart();
       const weekEnd = getWeekEnd();
       const weekData = await fetchWeeklyNutrition(weekStart, weekEnd);
@@ -374,7 +374,7 @@ export default function AnalyticsScreen() {
       console.warn('Error in debounced data loading:', error);
       setLoading(false);
     }
-  }, [lastFetchTime, userPlan]);
+  }, [userId, recentMeals, userPlan, lastFetchTime]);
 
   // Load current week data with debouncing
   useEffect(() => {
@@ -405,6 +405,8 @@ export default function AnalyticsScreen() {
   // Load weekly history
   useEffect(() => {
     const loadWeeklyHistory = async () => {
+      if (!userId || !recentMeals) return;
+      
       const history: WeeklyNutrition[] = [];
       
       // Get last 4 weeks
@@ -420,40 +422,29 @@ export default function AnalyticsScreen() {
       setWeeklyHistory(history);
     };
 
-    if (auth.currentUser) {
+    if (userId && recentMeals && userPlan) {
       loadWeeklyHistory();
       fetchDailyNutrition();
     }
-  }, [userPlan]);
+  }, [userId, recentMeals, userPlan]);
 
-  // Load user profile and plan
+  // Load user profile and plan  
+  const userData = useQuery(api.users.get, userId ? { userId } : "skip");
+  
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
+    if (!userData) return;
     
-    const ref = doc(db, 'users', user.uid);
-    const unsub = onSnapshot(ref, (snap) => {
-      const data: any = snap.data() || {};
-      const profile = data.profile || {};
-      const weight = Number(profile.weight || profile.currentWeight || 0);
-      const desired = Number(profile.desiredWeight || data.plan?.desiredWeight || 0);
-      const height = Number(profile.height || 0);
-      const plan = data.plan || null;
-      
-      if (!isNaN(weight)) setCurrentWeight(weight);
-      if (!isNaN(desired)) setGoalWeight(desired);
-      if (!isNaN(height)) setHeightCm(height);
-      if (plan) setUserPlan(plan);
-    }, (err) => {
-      if (String(err?.code || '').includes('permission-denied')) {
-        console.warn('[Analytics] User snapshot permission denied');
-        return;
-      }
-      console.warn('[Analytics] User snapshot error', err);
-    });
+    const profile = userData.profile || {};
+    const weight = Number(profile.weight || profile.currentWeight || 0);
+    const desired = Number(profile.desiredWeight || userData.plan?.desiredWeight || 0);
+    const height = Number(profile.height || 0);
+    const plan = userData.plan || null;
     
-    return unsub;
-  }, []);
+    if (!isNaN(weight)) setCurrentWeight(weight);
+    if (!isNaN(desired)) setGoalWeight(desired);
+    if (!isNaN(height)) setHeightCm(height);
+    if (plan) setUserPlan(plan);
+  }, [userData]);
 
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -467,35 +458,103 @@ export default function AnalyticsScreen() {
   };
 
   const openLogModal = () => {
+    // Check if user can log weight
+    if (canLogWeightCheck && !canLogWeightCheck.canLog) {
+      const daysRemaining = canLogWeightCheck.daysRemaining || 0;
+      const nextDate = canLogWeightCheck.nextAllowedDate 
+        ? new Date(canLogWeightCheck.nextAllowedDate).toLocaleDateString()
+        : 'soon';
+      
+      Alert.alert(
+        'Weight Logging Restricted',
+        `You can only log your weight once per week.\n\nYou logged your weight recently and can log again in ${daysRemaining} day(s).\n\nNext allowed: ${nextDate}`,
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+    
     setLogInput(String(currentWeight || ''));
     setIsLogModalOpen(true);
   };
 
   const saveGoalWeight = async () => {
-    if (!auth.currentUser) return;
-    const desiredWeight = parseInt(goalInput || '0', 10);
+    if (!userId) {
+      console.warn('No user ID');
+      return;
+    }
+    
+    const desiredWeight = parseFloat(goalInput || '0');
+    
+    if (desiredWeight <= 0 || isNaN(desiredWeight)) {
+      console.warn('Invalid goal weight:', goalInput);
+      return;
+    }
+    
     setSaving(true);
     try {
-      const ref = doc(db, 'users', auth.currentUser.uid);
-      await setDoc(ref, { profile: { desiredWeight } } as any, { merge: true } as any);
+      console.log('Saving goal weight:', desiredWeight, 'for user:', userId);
+      
+      await updateDesiredWeightMutation({
+        userId,
+        desiredWeight,
+      });
+      
+      // Update local state immediately
+      setGoalWeight(desiredWeight);
+      
+      console.log('Goal weight saved successfully:', desiredWeight);
       setIsGoalModalOpen(false);
+    } catch (e) {
+      console.error('Failed to save goal weight:', e);
+      // Keep modal open so user can try again
     } finally {
       setSaving(false);
     }
   };
 
   const logCurrentWeight = async () => {
-    if (!auth.currentUser) return;
-    const weight = parseInt(logInput || '0', 10);
+    if (!userId) {
+      console.warn('No user ID');
+      return;
+    }
+    
+    const weight = parseFloat(logInput || '0');
+    
+    if (weight <= 0 || isNaN(weight)) {
+      console.warn('Invalid weight:', logInput);
+      return;
+    }
+    
     setSaving(true);
     try {
-      const ref = doc(db, 'users', auth.currentUser.uid);
-      await setDoc(
-        ref,
-        { profile: { weight }, weightHistory: arrayUnion({ weight, at: serverTimestamp() }), lastWeighedAt: serverTimestamp() } as any,
-        { merge: true } as any
-      );
+      console.log('Logging weight:', weight, 'for user:', userId);
+      
+      await logWeightMutation({
+        userId,
+        weight,
+      });
+      
+      // Update local state immediately
+      setCurrentWeight(weight);
+      
+      console.log('Weight logged successfully:', weight);
       setIsLogModalOpen(false);
+    } catch (e: any) {
+      console.error('Failed to log weight:', e);
+      const errorMessage = e?.message || String(e);
+      
+      // Show user-friendly error message
+      Alert.alert(
+        'Failed to Save Weight',
+        errorMessage,
+        [{ text: 'OK', style: 'default' }]
+      );
+      
+      // Close modal if it's a restriction error (once per week)
+      if (errorMessage.includes('can log weight again')) {
+        setIsLogModalOpen(false);
+      }
+      // Otherwise keep modal open so user can try again
     } finally {
       setSaving(false);
     }
@@ -815,13 +874,26 @@ export default function AnalyticsScreen() {
                 <Text style={styles.modalTitle}>Update weight goal</Text>
                 <View style={styles.modalRow}>
                   <Text style={styles.modalLabel}>Goal (kg)</Text>
-                  <TextInput style={styles.modalInput} keyboardType="numeric" value={goalInput} onChangeText={setGoalInput} />
+                  <TextInput 
+                    style={styles.modalInput} 
+                    keyboardType="decimal-pad"
+                    placeholder="e.g., 70"
+                    placeholderTextColor="#999"
+                    value={goalInput} 
+                    onChangeText={setGoalInput}
+                    autoFocus
+                    selectTextOnFocus
+                  />
                 </View>
                 <View style={styles.modalActions}>
                   <TouchableOpacity style={styles.modalSecondary} onPress={() => setIsGoalModalOpen(false)}>
                     <Text style={styles.modalSecondaryText}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.modalPrimary} onPress={saveGoalWeight} disabled={saving}>
+                  <TouchableOpacity 
+                    style={[styles.modalPrimary, (saving || !goalInput) && { opacity: 0.5 }]} 
+                    onPress={saveGoalWeight} 
+                    disabled={saving || !goalInput}
+                  >
                     <Text style={styles.modalPrimaryText}>{saving ? 'Saving…' : 'Save'}</Text>
                   </TouchableOpacity>
                 </View>
@@ -840,13 +912,26 @@ export default function AnalyticsScreen() {
                 <Text style={styles.modalTitle}>Log current weight</Text>
                 <View style={styles.modalRow}>
                   <Text style={styles.modalLabel}>Weight (kg)</Text>
-                  <TextInput style={styles.modalInput} keyboardType="numeric" value={logInput} onChangeText={setLogInput} />
+                  <TextInput 
+                    style={styles.modalInput} 
+                    keyboardType="decimal-pad"
+                    placeholder="e.g., 75"
+                    placeholderTextColor="#999"
+                    value={logInput} 
+                    onChangeText={setLogInput}
+                    autoFocus
+                    selectTextOnFocus
+                  />
                 </View>
                 <View style={styles.modalActions}>
                   <TouchableOpacity style={styles.modalSecondary} onPress={() => setIsLogModalOpen(false)}>
                     <Text style={styles.modalSecondaryText}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.modalPrimary} onPress={logCurrentWeight} disabled={saving}>
+                  <TouchableOpacity 
+                    style={[styles.modalPrimary, (saving || !logInput) && { opacity: 0.5 }]} 
+                    onPress={logCurrentWeight} 
+                    disabled={saving || !logInput}
+                  >
                     <Text style={styles.modalPrimaryText}>{saving ? 'Saving…' : 'Save'}</Text>
                   </TouchableOpacity>
                 </View>
