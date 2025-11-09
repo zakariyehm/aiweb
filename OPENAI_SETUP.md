@@ -18,12 +18,12 @@ Your food scanning system now uses **OpenAI Vision API (GPT-4o)** instead of Goo
 
 ---
 
-## 📝 Step 2: Create .env File
+## 📝 Step 2: Create .env.local File
 
-Create a file named `.env` in your project root:
+Create a file named `.env.local` in your project root:
 
 ```bash
-# .env
+# .env.local
 EXPO_PUBLIC_OPENAI_API_KEY=sk-proj-your-actual-api-key-here
 ```
 
@@ -32,6 +32,8 @@ EXPO_PUBLIC_OPENAI_API_KEY=sk-proj-your-actual-api-key-here
 EXPO_PUBLIC_OPENAI_API_KEY=sk-proj-abc123xyz456def789ghi012jkl345mno678pqr901stu234
 ```
 
+⚠️ **Important:** `.env.local` is already in `.gitignore`, so your API key won't be committed to Git!
+
 ---
 
 ## 🚀 Step 3: Restart Development Server
@@ -39,12 +41,11 @@ EXPO_PUBLIC_OPENAI_API_KEY=sk-proj-abc123xyz456def789ghi012jkl345mno678pqr901stu
 ```bash
 # Stop the current server (Ctrl+C)
 
-# Install dependencies (if needed)
-npm install
-
-# Start with cleared cache
+# Start with cleared cache to load new .env.local
 npx expo start --clear
 ```
+
+**Note:** The app now reads from `.env.local` by default. This keeps your secrets safe!
 
 ---
 

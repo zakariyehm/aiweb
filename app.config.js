@@ -1,4 +1,7 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+
+// Load from .env.local first, then fallback to .env
+dotenv.config({ path: '.env.local' });
 
 export default {
   expo: {
