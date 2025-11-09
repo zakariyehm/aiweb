@@ -1,6 +1,8 @@
+import { Colors } from '@/constants/Colors';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/useAuth';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useQuery } from 'convex/react';
 import { router } from 'expo-router';
@@ -25,6 +27,9 @@ interface SectionCardProps {
 }
 
 export default function SettingsScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
+  const styles = createStyles(colors); // Create dynamic styles based on theme
   const [addBurnedCalories, setAddBurnedCalories] = useState(true);
   const [rolloverCalories, setRolloverCalories] = useState(true);
   const insets = useSafeAreaInsets();
@@ -244,11 +249,11 @@ export default function SettingsScreen() {
   );
 }
 
-// Updated styles to match the new layout
-const styles = StyleSheet.create({
+// Dynamic StyleSheet that adapts to theme
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F8FA',
+    backgroundColor: colors.cardSecondary,
   },
   header: {
     paddingHorizontal: 20,
@@ -257,12 +262,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 34,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     marginHorizontal: 16,
     padding: 16,
     borderRadius: 12,
@@ -273,20 +278,21 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.cardSecondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileName: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: colors.textPrimary,
   },
   profileAge: {
     fontSize: 14,
-    color: 'gray',
+    color: colors.textSecondary,
   },
   inviteCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     marginHorizontal: 16,
     borderRadius: 12,
     marginTop: 20,
@@ -300,6 +306,7 @@ const styles = StyleSheet.create({
   inviteTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: colors.textPrimary,
   },
   referralCard: {
     marginTop: 12,
@@ -317,24 +324,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#4A90E2',
   },
   referralText: {
-    color: 'white',
+    color: colors.background,
     fontWeight: 'bold',
     fontSize: 18,
     textAlign: 'center',
   },
   referralButton: {
-    backgroundColor: 'white',
+    backgroundColor: colors.background,
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
     marginTop: 10,
   },
   referralButtonText: {
-    color: 'black',
+    color: colors.textPrimary,
     fontWeight: 'bold',
   },
   sectionCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     marginHorizontal: 16,
     marginTop: 20,
     borderRadius: 12,
@@ -348,14 +355,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   listSection: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 12,
     overflow: 'hidden',
   },
   sectionBadge: {
-    color: '#772CE8',
+    color: colors.tint,
     fontSize: 12,
     fontWeight: '700',
     marginLeft: 16,
@@ -369,8 +376,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    backgroundColor: '#fff',
+    borderTopColor: colors.border,
+    backgroundColor: colors.card,
   },
   rowLeft: {
     flexDirection: 'row',
@@ -379,7 +386,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 15,
-    color: '#222',
+    color: colors.textPrimary,
   },
   rowRight: {
     flexDirection: 'row',
@@ -388,18 +395,18 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginRight: 8,
   },
   logoutText: {
-    color: '#E53935',
+    color: colors.error,
     fontWeight: '700',
     fontSize: 16,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textPrimary,
   },
   settingItem: {
     flexDirection: 'row',
@@ -407,7 +414,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: colors.border,
   },
   settingItemLeft: {
     flexDirection: 'row',
@@ -422,11 +429,11 @@ const styles = StyleSheet.create({
   },
   settingTitle: {
     fontSize: 16,
-    color: '#333',
+    color: colors.textPrimary,
   },
   settingSubtitle: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   settingItemRight: {
@@ -438,7 +445,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textTertiary,
   },
   scrollContent: {
     paddingBottom: 120, // Add padding for the tab bar and extra space

@@ -7,25 +7,37 @@ import { Platform, TouchableOpacity, View } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
 
   const openScan = () => {
     try { router.push('/actionDialog/scan'); } catch {}
   };
-
-
 
   return (
     <>
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.light.text,
-        tabBarInactiveTintColor: '#C9C9CF',
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600', marginBottom: Platform.OS === 'ios' ? 0 : 2 },
+        tabBarActiveTintColor: colors.tint,
+        tabBarInactiveTintColor: colors.tabIconDefault,
+        tabBarLabelStyle: { 
+          fontSize: 12, 
+          fontWeight: '600', 
+          marginBottom: Platform.OS === 'ios' ? 0 : 2 
+        },
         tabBarStyle: Platform.select({
-          ios: { position: 'absolute', backgroundColor: Colors.light.background },
-          default: { backgroundColor: Colors.light.background },
+          ios: { 
+            position: 'absolute', 
+            backgroundColor: colors.card,
+            borderTopColor: colors.border,
+            borderTopWidth: colorScheme === 'dark' ? 1 : 0,
+          },
+          default: { 
+            backgroundColor: colors.card,
+            borderTopColor: colors.border,
+            borderTopWidth: 1,
+          },
         }),
       }}>
       <Tabs.Screen
@@ -52,20 +64,20 @@ export default function TabLayout() {
             <TouchableOpacity onPress={openScan} activeOpacity={0.8} style={props.style}> 
               <View
                 style={{
-                  backgroundColor: '#2E2E2E',
+                  backgroundColor: colors.buttonPrimary,
                   borderRadius: 20,
                   width: 64,
                   height: 36,
                   justifyContent: 'center',
                   alignItems: 'center',
-                  shadowColor: '#000',
+                  shadowColor: colors.shadow,
                   shadowOpacity: Platform.OS === 'ios' ? 0.12 : 0,
                   shadowRadius: 4,
                   shadowOffset: { width: 0, height: 2 },
                   elevation: Platform.OS === 'android' ? 2 : 0,
                 }}
               >
-                <FontAwesome name="plus" size={24} color="#fff" />
+                <FontAwesome name="plus" size={24} color={colors.background} />
               </View>
             </TouchableOpacity>
           ),
@@ -75,16 +87,20 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color, focused }) => (
             <View style={{
               width: 32,
               height: 32,
               borderRadius: 16,
-              backgroundColor: color === '#A78BFA' ? '#6D28D9' : 'transparent',
+              backgroundColor: focused ? colors.tint : 'transparent',
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <FontAwesome name="user" size={18} color={color === '#A78BFA' ? '#fff' : color} />
+              <FontAwesome 
+                name="user" 
+                size={18} 
+                color={focused ? colors.background : color} 
+              />
             </View>
           ),
         }}

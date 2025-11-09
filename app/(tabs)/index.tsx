@@ -1,7 +1,9 @@
 import CardComponent from '@/components/homeComponents/cardComponent';
+import { Colors } from '@/constants/Colors';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/useAuth';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import useDailyNutrition from '@/hooks/useDailyNutrition';
 import useStreak from '@/hooks/useStreak';
 import { FontAwesome } from '@expo/vector-icons';
@@ -12,6 +14,9 @@ import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Modal, Platfo
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
+  const styles = createStyles(colors); // Create dynamic styles based on theme
   const [selectedTab, setSelectedTab] = useState<'today' | 'yesterday'>('today');
   const insets = useSafeAreaInsets();
   const [plan, setPlan] = useState<null | { calories: number; protein: number; carbs: number; fat: number }>(null);
@@ -133,8 +138,8 @@ export default function HomeScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}> 
-        <ActivityIndicator size="large" color="#772CE8" />
-        <Text style={{ marginTop: 10, fontSize: 16, color: '#666' }}>Loading your nutrition data...</Text>
+        <ActivityIndicator size="large" color={colors.tint} />
+        <Text style={{ marginTop: 10, fontSize: 16, color: colors.textSecondary }}>Loading your nutrition data...</Text>
       </View>
     );
   }
@@ -184,21 +189,21 @@ export default function HomeScreen() {
                 valueText: `${formatNutritionValue(todayData.dailyTotals.protein)} / ${plan?.protein ?? 0}g`, 
                 helper: 'Protein', 
                 progress: plan ? Math.min(1, Math.max(0, todayData.dailyTotals.protein / plan.protein)) : 0, 
-                color: '#F97373', 
+                color: colors.protein, 
                 icon: 'flash' 
               },
               { 
                 valueText: `${formatNutritionValue(todayData.dailyTotals.carbs)} / ${plan?.carbs ?? 0}g`, 
                 helper: 'Carbs', 
                 progress: plan ? Math.min(1, Math.max(0, todayData.dailyTotals.carbs / plan.carbs)) : 0, 
-                color: '#F59E0B', 
+                color: colors.carbs, 
                 icon: 'leaf' 
               },
               { 
                 valueText: `${formatNutritionValue(todayData.dailyTotals.fat)} / ${plan?.fat ?? 0}g`, 
                 helper: 'Fats', 
                 progress: plan ? Math.min(1, Math.max(0, todayData.dailyTotals.fat / plan.fat)) : 0, 
-                color: '#3B82F6', 
+                color: colors.fat, 
                 icon: 'water' 
               },
             ] : [
@@ -206,21 +211,21 @@ export default function HomeScreen() {
                 valueText: `${formatNutritionValue(yesterdayData.dailyTotals.protein)} / ${plan?.protein ?? 0}g`, 
                 helper: 'Protein', 
                 progress: plan ? Math.min(1, Math.max(0, yesterdayData.dailyTotals.protein / plan.protein)) : 0, 
-                color: '#F97373', 
+                color: colors.protein, 
                 icon: 'flash' 
               },
               { 
                 valueText: `${formatNutritionValue(yesterdayData.dailyTotals.carbs)} / ${plan?.carbs ?? 0}g`, 
                 helper: 'Carbs', 
                 progress: plan ? Math.min(1, Math.max(0, yesterdayData.dailyTotals.carbs / plan.carbs)) : 0, 
-                color: '#F59E0B', 
+                color: colors.carbs, 
                 icon: 'leaf' 
               },
               { 
                 valueText: `${formatNutritionValue(yesterdayData.dailyTotals.fat)} / ${plan?.fat ?? 0}g`, 
                 helper: 'Fats', 
                 progress: plan ? Math.min(1, Math.max(0, yesterdayData.dailyTotals.fat / plan.fat)) : 0, 
-                color: '#3B82F6', 
+                color: colors.fat, 
                 icon: 'water' 
               },
             ]}
@@ -266,23 +271,23 @@ export default function HomeScreen() {
                   <View style={styles.mealImageWrap}>
                     <Image source={{ uri: m.imageUri }} style={styles.mealImage} />
                   </View>
-                ) : (
-                  <View style={[styles.mealImageWrap, { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' }]}>
-                    <FontAwesome name="cutlery" size={18} color="#9CA3AF" />
-                  </View>
-                )}
+            ) : (
+              <View style={[styles.mealImageWrap, { backgroundColor: colors.cardSecondary, alignItems: 'center', justifyContent: 'center' }]}>
+                <FontAwesome name="cutlery" size={18} color={colors.textTertiary} />
+              </View>
+            )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.mealTitle} numberOfLines={1}>{m.title || 'Meal'}</Text>
-                  <View style={styles.mealRow}><FontAwesome name="fire" size={14} color="#111" /><Text style={styles.mealCal}> {Math.round(m.calories)} kcal</Text></View>
+                  <View style={styles.mealRow}><FontAwesome name="fire" size={14} color={colors.calories} /><Text style={styles.mealCal}> {Math.round(m.calories)} kcal</Text></View>
                   <View style={styles.mealMacrosRow}>
-                    <Text style={[styles.mealMacro, { color: '#EF4444' }]}>⚡ {formatNutritionValue(m.proteinG)}</Text>
-                    <Text style={[styles.mealMacro, { color: '#D97706' }]}>🌾 {formatNutritionValue(m.carbsG)}</Text>
-                    <Text style={[styles.mealMacro, { color: '#2563EB' }]}>💧 {formatNutritionValue(m.fatG)}</Text>
+                    <Text style={[styles.mealMacro, { color: colors.protein }]}>⚡ {formatNutritionValue(m.proteinG)}</Text>
+                    <Text style={[styles.mealMacro, { color: colors.carbs }]}>🌾 {formatNutritionValue(m.carbsG)}</Text>
+                    <Text style={[styles.mealMacro, { color: colors.fat }]}>💧 {formatNutritionValue(m.fatG)}</Text>
                   </View>
                 </View>
                 <View style={styles.mealTimePill}>
                   <Text style={styles.mealTimeText}>
-                    {new Date(m.createdAt?.toDate?.() || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                    {new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                   </Text>
                 </View>
               </View>
@@ -330,10 +335,11 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// Dynamic StyleSheet that adapts to theme
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardSecondary,
   },
   scrollView: {
     flex: 1,
@@ -358,7 +364,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
   },
   headerRight: {
     flexDirection: 'row',
@@ -366,10 +372,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   streakPill: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.cardSecondary,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     paddingHorizontal: 10,
     paddingVertical: 6,
     flexDirection: 'row',
@@ -380,7 +386,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   streakNum: {
-    color: '#111',
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -392,16 +398,16 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 18,
-    color: '#8A8A8A',
+    color: colors.textTertiary,
     fontWeight: '600',
   },
   tabLabelActive: {
-    color: '#000',
+    color: colors.textPrimary,
   },
   streakText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
   },
   // removed date selector styles
   // calorieCard removed in favor of CardComponent
@@ -412,13 +418,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#000',
+    borderColor: colors.buttonPrimary,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: colors.buttonSecondary,
   },
   editButtonText: {
     fontSize: 12,
-    color: '#000',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   calorieLeft: {
@@ -427,11 +433,11 @@ const styles = StyleSheet.create({
   calorieNumber: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
   },
   calorieLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   calorieRight: {
@@ -441,7 +447,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.cardSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -452,7 +458,7 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 4,
-    borderColor: '#333',
+    borderColor: colors.textPrimary,
     borderTopColor: 'transparent',
     borderRightColor: 'transparent',
     borderBottomColor: 'transparent',
@@ -468,13 +474,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   macroCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     flex: 1,
     marginHorizontal: 5,
     padding: 15,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -486,12 +492,12 @@ const styles = StyleSheet.create({
   macroNumber: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   macroLabel: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -515,7 +521,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#333',
+    backgroundColor: colors.textPrimary,
     marginHorizontal: 3,
   },
   dailyTotalsSection: {
@@ -530,11 +536,11 @@ const styles = StyleSheet.create({
   },
   totalCard: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -543,12 +549,12 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   totalLabel: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   recentlyEatenSection: {
@@ -558,15 +564,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 15,
   },
   emptyCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -578,24 +584,24 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
   mealCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 12,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -609,21 +615,21 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   mealImage: { width: '100%', height: '100%' },
-  mealTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
+  mealTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   mealRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  mealCal: { color: '#111', fontSize: 14 },
+  mealCal: { color: colors.textPrimary, fontSize: 14 },
   mealMacrosRow: { flexDirection: 'row', gap: 16, marginTop: 6 },
   mealMacro: { fontSize: 13, fontWeight: '600' },
   mealTimePill: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#E5E7EB',
+    backgroundColor: colors.cardSecondary,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 6,
     marginLeft: 10,
   },
-  mealTimeText: { color: '#111', fontSize: 12, fontWeight: '600' },
+  mealTimeText: { color: colors.textPrimary, fontSize: 12, fontWeight: '600' },
   arrowContainer: {
     marginTop: 15,
   },
@@ -633,11 +639,11 @@ const styles = StyleSheet.create({
   // Modal styles
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   modalCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.modalBackground,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
@@ -645,7 +651,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   modalRow: {
@@ -656,17 +662,18 @@ const styles = StyleSheet.create({
   },
   modalLabel: {
     fontSize: 14,
-    color: '#333',
+    color: colors.textSecondary,
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.inputBorder,
+    backgroundColor: colors.inputBackground,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
     minWidth: 120,
     textAlign: 'right',
-    color: '#000',
+    color: colors.textPrimary,
   },
   modalActions: {
     marginTop: 12,
@@ -675,7 +682,7 @@ const styles = StyleSheet.create({
   },
   modalSecondary: {
     borderWidth: 1,
-    borderColor: '#000',
+    borderColor: colors.buttonPrimary,
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 20,
@@ -683,11 +690,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalSecondaryText: {
-    color: '#000',
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   modalPrimary: {
-    backgroundColor: '#000',
+    backgroundColor: colors.buttonPrimary,
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 20,
@@ -695,7 +702,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalPrimaryText: {
-    color: '#fff',
+    color: colors.background,
     fontWeight: '700',
   },
 });

@@ -1,6 +1,8 @@
+import { Colors } from '@/constants/Colors';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/useAuth';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import useStreak from '@/hooks/useStreak';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useQuery } from 'convex/react';
@@ -34,6 +36,9 @@ interface NutritionPlan {
 }
 
 export default function ProfileScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
+  const styles = createStyles(colors); // Create dynamic styles based on theme
   const insets = useSafeAreaInsets();
   const { userSession } = useAuth();
   const userId = userSession?.userId as Id<"users"> | undefined;
@@ -88,11 +93,11 @@ export default function ProfileScreen() {
 
   const getNutritionColor = (type: string) => {
     switch (type) {
-      case 'calories': return '#000';
-      case 'protein': return '#F87171';
-      case 'carbs': return '#FBBF24';
-      case 'fat': return '#3B82F6';
-      default: return '#FF6B6B';
+      case 'calories': return colors.calories;
+      case 'protein': return colors.protein;
+      case 'carbs': return colors.carbs;
+      case 'fat': return colors.fat;
+      default: return colors.error;
     }
   };
 
@@ -235,7 +240,7 @@ export default function ProfileScreen() {
                   <Ionicons name="flame" size={24} color={getNutritionColor('calories')} />
                   <Text style={styles.nutritionLabel}>Calories</Text>
                 </View>
-                <Text style={[styles.nutritionValue, { color: '#000' }]}>{nutritionPlan.calories}</Text>
+                <Text style={[styles.nutritionValue, { color: colors.textPrimary }]}>{nutritionPlan.calories}</Text>
                 <Text style={styles.nutritionUnit}>kcal</Text>
               </View>
               <View style={[styles.nutritionCard, { borderLeftColor: getNutritionColor('protein') }]}>
@@ -380,10 +385,11 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// Dynamic StyleSheet that adapts to theme
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#f8f9fa', 
+    backgroundColor: colors.cardSecondary, 
   },
   header: {
     paddingHorizontal: 20,
@@ -392,7 +398,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 34,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
   },
   scrollView: {
     flex: 1,
@@ -404,11 +410,11 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
   },
   userInfoSection: {
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     paddingVertical: 32,
     marginBottom: 16,
   },
@@ -417,7 +423,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.cardSecondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -426,24 +432,24 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.cardSecondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   userName: {
     fontSize: 24,
-    color: '#000',
+    color: colors.textPrimary,
     fontWeight: '600',
     marginBottom: 8,
   },
   userEmail: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '400',
   },
   statsSection: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 16,
@@ -452,7 +458,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   statsGrid: {
@@ -462,7 +468,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '48%',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
@@ -470,16 +476,16 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   statValue: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
   },
   goalsSection: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 16,
@@ -492,7 +498,7 @@ const styles = StyleSheet.create({
   },
   goalCard: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     padding: 16,
     borderRadius: 12,
     marginHorizontal: 4,
@@ -504,34 +510,34 @@ const styles = StyleSheet.create({
   },
   goalTitle: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 4,
   },
   goalValue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   targetWeightCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   targetWeightLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   targetWeightValue: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
   },
   nutritionSection: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 16,
@@ -545,7 +551,7 @@ const styles = StyleSheet.create({
   },
   nutritionCard: {
     width: '48%',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
@@ -558,18 +564,18 @@ const styles = StyleSheet.create({
   },
   nutritionLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginLeft: 8,
   },
   nutritionValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   nutritionUnit: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
   },
   metabolicInfo: {
     flexDirection: 'row',
@@ -577,7 +583,7 @@ const styles = StyleSheet.create({
   },
   metabolicCard: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     padding: 16,
     borderRadius: 12,
     marginHorizontal: 4,
@@ -585,29 +591,29 @@ const styles = StyleSheet.create({
   },
   metabolicLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   metabolicValue: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   metabolicDescription: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   progressSection: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 16,
     padding: 20,
   },
   streakMainCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     padding: 20,
     borderRadius: 12,
     marginBottom: 16,
@@ -616,7 +622,7 @@ const styles = StyleSheet.create({
   streakMainTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
     lineHeight: 28,
@@ -624,21 +630,21 @@ const styles = StyleSheet.create({
   streakHighlight: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FF0000',
+    color: colors.error,
   },
   streakDescription: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 20,
   },
   learnMoreLink: {
-    color: '#007BFF',
+    color: colors.info,
     textDecorationLine: 'underline',
   },
   streakBadgesSection: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
@@ -646,7 +652,7 @@ const styles = StyleSheet.create({
   badgesTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -662,20 +668,20 @@ const styles = StyleSheet.create({
     fontSize: 24,
     marginBottom: 4,
     opacity: 0.3,
-    color: '#9CA3AF',
+    color: colors.textTertiary,
   },
   badgeText: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.textTertiary,
     opacity: 0.3,
   },
   badgeConnector: {
     width: 1,
     height: '100%',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
   },
   rewardCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -693,15 +699,15 @@ const styles = StyleSheet.create({
   rewardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
   },
   rewardMessage: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   weeklyProgressCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
@@ -709,7 +715,7 @@ const styles = StyleSheet.create({
   weeklyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   weeklyStats: {
@@ -722,14 +728,14 @@ const styles = StyleSheet.create({
   weeklyStatValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000',
+    color: colors.textPrimary,
   },
   weeklyStatLabel: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
   },
   monthlyCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
@@ -737,7 +743,7 @@ const styles = StyleSheet.create({
   monthlyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   achievementRow: {
@@ -753,7 +759,7 @@ const styles = StyleSheet.create({
   },
   achievementText: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   badge3d: {

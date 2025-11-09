@@ -1,6 +1,8 @@
+import { Colors } from '@/constants/Colors';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/useAuth';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { FontAwesome } from '@expo/vector-icons';
 import { useMutation, useQuery } from 'convex/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -28,6 +30,9 @@ interface DailyNutrition {
 }
 
 export default function AnalyticsScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
+  const styles = createStyles(colors); // Create dynamic styles based on theme
   const [selectedTimeframe, setSelectedTimeframe] = useState('This Week');
   const insets = useSafeAreaInsets();
   const { userSession } = useAuth();
@@ -174,23 +179,6 @@ export default function AnalyticsScreen() {
       // TODO: Implement with Convex
       console.log('Fix existing meals - needs Convex implementation');
       return;
-
-      snapshot.docs.forEach(doc => {
-        const meal = doc.data();
-        if (meal.createdAt) {
-          // Extract date from createdAt timestamp
-          const timestamp = meal.createdAt.toDate ? meal.createdAt.toDate() : new Date(meal.createdAt);
-          const dateString = timestamp.toISOString().split('T')[0];
-          
-          batch.update(doc.ref, { date: dateString });
-          fixedCount++;
-        }
-      });
-
-      if (fixedCount > 0) {
-        await batch.commit();
-        console.log(`Fixed ${fixedCount} meals with missing date fields`);
-      }
     } catch (error) {
       console.warn('Error fixing existing meals:', error);
     }
@@ -235,10 +223,10 @@ export default function AnalyticsScreen() {
       meals.forEach(meal => {
         let mealDate = meal.date;
         
-        // If no date field, try to extract from createdAt
+        // If no date field, try to extract from createdAt timestamp
         if (!mealDate && meal.createdAt) {
           try {
-            const timestamp = meal.createdAt.toDate ? meal.createdAt.toDate() : new Date(meal.createdAt);
+            const timestamp = new Date(meal.createdAt);
             mealDate = timestamp.toISOString().split('T')[0];
           } catch {
             return; // Skip this meal if date parsing fails
@@ -435,7 +423,7 @@ export default function AnalyticsScreen() {
     if (!userData) return;
     
     const profile = userData.profile || {};
-    const weight = Number(profile.weight || profile.currentWeight || 0);
+    const weight = Number(profile.weight || userData.plan?.currentWeight || 0);
     const desired = Number(profile.desiredWeight || userData.plan?.desiredWeight || 0);
     const height = Number(profile.height || 0);
     const plan = userData.plan || null;
@@ -944,8 +932,9 @@ export default function AnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+// Dynamic StyleSheet that adapts to theme
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.cardSecondary },
   scrollContent: {
     paddingBottom: 100, // Extra padding for iOS scroll
   },
@@ -956,22 +945,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between', 
     alignItems: 'center'
   },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#000' },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: colors.textPrimary },
   refreshButton: {
     padding: 8,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
   },
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
@@ -985,20 +974,20 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8
   },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
-  progressPercentage: { fontSize: 14, color: '#666' },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginBottom: 8 },
+  progressPercentage: { fontSize: 14, color: colors.textSecondary },
   goalAchievement: { alignItems: 'flex-end' },
-  targetCalories: { fontSize: 12, color: '#666', marginTop: 4 },
-  timeframeTabs: { flexDirection: 'row', marginBottom: 16, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 },
+  targetCalories: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
+  timeframeTabs: { flexDirection: 'row', marginBottom: 16, backgroundColor: colors.cardSecondary, borderRadius: 8, padding: 4 },
   timeframeTab: { flex: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, alignItems: 'center' },
-  timeframeTabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  timeframeTabText: { fontSize: 14, color: '#666', fontWeight: '500' },
-  timeframeTabTextActive: { color: '#000', fontWeight: '600' },
+  timeframeTabActive: { backgroundColor: colors.card, shadowColor: colors.shadow, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  timeframeTabText: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
+  timeframeTabTextActive: { color: colors.textPrimary, fontWeight: '600' },
   weeklyStats: { marginTop: 16 },
   statRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   statItem: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 24, fontWeight: 'bold', color: '#000', marginBottom: 4 },
-  statLabel: { fontSize: 12, color: '#666', textAlign: 'center' },
+  statValue: { fontSize: 24, fontWeight: 'bold', color: colors.textPrimary, marginBottom: 4 },
+  statLabel: { fontSize: 12, color: colors.textSecondary, textAlign: 'center' },
   healthScoreContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1006,17 +995,17 @@ const styles = StyleSheet.create({
   },
   healthScoreEmoji: { fontSize: 20 },
   restWeekCard: { 
-    backgroundColor: '#f8f9fa', 
+    backgroundColor: colors.cardSecondary, 
     padding: 20, 
     borderRadius: 8, 
     alignItems: 'center',
     flexDirection: 'column',
     gap: 8
   },
-  restWeekText: { fontSize: 16, color: '#666', textAlign: 'center', fontWeight: '500' },
-  restWeekSubtext: { fontSize: 12, color: '#999', textAlign: 'center' },
+  restWeekText: { fontSize: 16, color: colors.textSecondary, textAlign: 'center', fontWeight: '500' },
+  restWeekSubtext: { fontSize: 12, color: colors.textTertiary, textAlign: 'center' },
   macrosBreakdown: { marginTop: 16 },
-  macrosTitle: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 12 },
+  macrosTitle: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginBottom: 12 },
   macroItem: { marginBottom: 12 },
   macroHeader: {
     flexDirection: 'row',
@@ -1024,55 +1013,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  macroLabel: { fontSize: 12, color: '#666' },
-  macroValue: { fontSize: 14, fontWeight: 'bold', color: '#000' },
+  macroLabel: { fontSize: 12, color: colors.textSecondary },
+  macroValue: { fontSize: 14, fontWeight: 'bold', color: colors.textPrimary },
   macroBar: { 
     height: 8, 
-    backgroundColor: '#f0f0f0', 
+    backgroundColor: colors.cardSecondary, 
     borderRadius: 4, 
     marginBottom: 4,
     overflow: 'hidden'
   },
   macroFill: { height: '100%', borderRadius: 4 },
-  macroTarget: { fontSize: 12, color: '#666', marginTop: 4 },
+  macroTarget: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
   weightHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  updateButton: { backgroundColor: '#772CE8', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  updateButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  weightValue: { fontSize: 32, fontWeight: 'bold', color: '#000', marginBottom: 16 },
+  updateButton: { backgroundColor: colors.tint, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  updateButtonText: { color: colors.background, fontSize: 14, fontWeight: '600' },
+  weightValue: { fontSize: 32, fontWeight: 'bold', color: colors.textPrimary, marginBottom: 16 },
   weightProgress: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.cardSecondary,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
   },
   weightProgressText: {
     fontSize: 14,
-    color: '#333',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
-  infoCard: { backgroundColor: '#f8f9fa', padding: 16, borderRadius: 8, marginBottom: 16 },
-  infoText: { fontSize: 14, color: '#666', lineHeight: 20 },
-  logWeightButton: { backgroundColor: '#333', paddingVertical: 16, borderRadius: 8, alignItems: 'center' },
-  logWeightButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  infoCard: { backgroundColor: colors.cardSecondary, padding: 16, borderRadius: 8, marginBottom: 16 },
+  infoText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  logWeightButton: { backgroundColor: colors.buttonPrimary, paddingVertical: 16, borderRadius: 8, alignItems: 'center' },
+  logWeightButtonText: { color: colors.background, fontSize: 16, fontWeight: '600' },
   bmiCard: { padding: 16 },
   bmiHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 8 },
-  bmiText: { fontSize: 16, color: '#333' },
+  bmiText: { fontSize: 16, color: colors.textPrimary },
   bmiLabel: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
-  bmiLabelText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  bmiValue: { fontSize: 32, fontWeight: 'bold', color: '#000', marginBottom: 16 },
+  bmiLabelText: { color: colors.background, fontSize: 12, fontWeight: '600' },
+  bmiValue: { fontSize: 32, fontWeight: 'bold', color: colors.textPrimary, marginBottom: 16 },
   bmiScale: { marginTop: 16 },
   bmiBar: { height: 8, borderRadius: 4, flexDirection: 'row', position: 'relative', marginBottom: 12 },
   bmiBarSegment: { height: '100%' },
-  bmiMarker: { position: 'absolute', top: -4, width: 4, height: 16, backgroundColor: '#000', borderRadius: 2 },
+  bmiMarker: { position: 'absolute', top: -4, width: 4, height: 16, backgroundColor: colors.textPrimary, borderRadius: 2 },
   bmiLegend: { flexDirection: 'row', justifyContent: 'space-between' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendColor: { width: 12, height: 12, borderRadius: 6 },
-  legendText: { fontSize: 12, color: '#666' },
+  legendText: { fontSize: 12, color: colors.textSecondary },
   chartContainer: { 
     flexDirection: 'row', 
     height: 200,
     marginTop: 16,
-    backgroundColor: '#fafafa',
+    backgroundColor: colors.cardSecondary,
     borderRadius: 8,
     padding: 16,
   },
@@ -1084,7 +1073,7 @@ const styles = StyleSheet.create({
   },
   chartYLabel: { 
     fontSize: 12, 
-    color: '#666', 
+    color: colors.textSecondary, 
     textAlign: 'right',
     height: 32,
     lineHeight: 32,
@@ -1103,7 +1092,7 @@ const styles = StyleSheet.create({
   },
   chartGridLine: { 
     height: 1, 
-    backgroundColor: '#f0f0f0', 
+    backgroundColor: colors.border, 
     marginTop: 32,
   },
   chartDataPoints: { 
@@ -1128,8 +1117,8 @@ const styles = StyleSheet.create({
     borderRadius: 6, 
     marginBottom: 8,
     borderWidth: 2,
-    borderColor: '#fff',
-    shadowColor: '#000',
+    borderColor: colors.card,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -1137,13 +1126,13 @@ const styles = StyleSheet.create({
   },
   dataPointValue: { 
     fontSize: 11, 
-    color: '#333', 
+    color: colors.textPrimary, 
     fontWeight: '600',
     textAlign: 'center',
   },
   dataPointLabel: { 
     fontSize: 10, 
-    color: '#666', 
+    color: colors.textSecondary, 
     marginTop: 4,
     textAlign: 'center',
   },
@@ -1153,25 +1142,25 @@ const styles = StyleSheet.create({
   },
   emptyChartText: {
     fontSize: 18,
-    color: '#666',
+    color: colors.textSecondary,
   },
   emptyChartSubtext: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textTertiary,
     marginTop: 4,
   },
   bottomSpacer: {
     height: 100, // Extra space at bottom for iOS
   },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#000', marginBottom: 8 },
+  modalBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: colors.modalBackground, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 8 },
   modalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  modalLabel: { fontSize: 14, color: '#333' },
-  modalInput: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, minWidth: 120, textAlign: 'right', color: '#000' },
+  modalLabel: { fontSize: 14, color: colors.textSecondary },
+  modalInput: { borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.inputBackground, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, minWidth: 120, textAlign: 'right', color: colors.textPrimary },
   modalActions: { marginTop: 12, flexDirection: 'row', justifyContent: 'space-between' },
-  modalSecondary: { borderWidth: 1, borderColor: '#000', paddingVertical: 12, paddingHorizontal: 18, borderRadius: 20, width: '48%', alignItems: 'center' },
-  modalSecondaryText: { color: '#000', fontWeight: '700' },
-  modalPrimary: { backgroundColor: '#000', paddingVertical: 12, paddingHorizontal: 18, borderRadius: 20, width: '48%', alignItems: 'center' },
-  modalPrimaryText: { color: '#fff', fontWeight: '700' },
+  modalSecondary: { borderWidth: 1, borderColor: colors.buttonPrimary, paddingVertical: 12, paddingHorizontal: 18, borderRadius: 20, width: '48%', alignItems: 'center' },
+  modalSecondaryText: { color: colors.textPrimary, fontWeight: '700' },
+  modalPrimary: { backgroundColor: colors.buttonPrimary, paddingVertical: 12, paddingHorizontal: 18, borderRadius: 20, width: '48%', alignItems: 'center' },
+  modalPrimaryText: { color: colors.background, fontWeight: '700' },
 });
