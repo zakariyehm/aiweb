@@ -53,8 +53,7 @@ export default {
       typedRoutes: true
     },
     extra: {
-      googleApiKey: process.env.EXPO_PUBLIC_GOOGLE_API_KEY,
-      usdaApiKey: process.env.EXPO_PUBLIC_USDA_API_KEY,
+      openaiApiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
     }
   }
 };

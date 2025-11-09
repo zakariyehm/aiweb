@@ -125,8 +125,8 @@ export default function HomeScreen() {
       selectedTab,
       todayDataLength: todayData.recentlyEaten.length,
       yesterdayDataLength: yesterdayData.recentlyEaten.length,
-      todayData: todayData.recentlyEaten.map(m => ({ id: m.id, title: m.title, date: m.date })),
-      yesterdayData: yesterdayData.recentlyEaten.map(m => ({ id: m.id, title: m.title, date: m.date }))
+      todayData: todayData.recentlyEaten.map(m => ({ id: m._id, title: m.title, date: m.date })),
+      yesterdayData: yesterdayData.recentlyEaten.map(m => ({ id: m._id, title: m.title, date: m.date }))
     });
   }, [selectedTab, todayData, yesterdayData]);
 
@@ -261,7 +261,7 @@ export default function HomeScreen() {
             </View>
           ) : (
             (selectedTab === 'today' ? todayData.recentlyEaten : yesterdayData.recentlyEaten).map((m) => (
-              <View key={m.id} style={styles.mealCard}>
+              <View key={m._id} style={styles.mealCard}>
                 {m.imageUri ? (
                   <View style={styles.mealImageWrap}>
                     <Image source={{ uri: m.imageUri }} style={styles.mealImage} />

@@ -138,7 +138,7 @@ export default function ScanResultsModal() {
     setIsLoading(true);
     try {
       // Add food entry to daily nutrition tracking
-      if (uid) {
+      if (userId) {
         await addFoodEntry({
           title: scanResult.title,
           calories: scanResult.calories,

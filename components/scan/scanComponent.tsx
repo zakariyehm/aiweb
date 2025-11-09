@@ -1,7 +1,6 @@
 import { analyzeFoodFromImage, type Nutrition } from '@/constants/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
@@ -62,31 +61,16 @@ export default function ScanScreen(): React.ReactElement {
         router.replace('/(tabs)');
         return;
       }
-      // Persist the captured image to a stable cache path so it survives navigation
+      // Use the original URI directly (no need to persist for OpenAI API)
       const originalUri = result.assets[0].uri;
-      const scansDir = `${FileSystem.cacheDirectory}scans`;
-      try {
-        await FileSystem.makeDirectoryAsync(scansDir, { intermediates: true });
-      } catch (e) {
-        // Directory may already exist
-      }
-      const timestamp = Date.now();
-      const persistedUri = `${scansDir}/${timestamp}.jpg`;
-      try {
-        await FileSystem.copyAsync({ from: originalUri, to: persistedUri });
-      } catch (copyErr) {
-        console.warn('[Scan] Failed to persist image to cache, falling back to original URI', copyErr);
-      }
+      console.log('[Scan] Using image URI:', originalUri);
 
-      const safeUri = (await FileSystem.getInfoAsync(persistedUri)).exists ? persistedUri : originalUri;
-      console.log('[Scan] Persisted image URI:', safeUri);
-
-      setPhotoUri(safeUri);
+      setPhotoUri(originalUri);
       setPhase('loading');
       
       try {
         console.log('[Scan] Starting analysis');
-        const analyzed = await analyzeFoodFromImage(safeUri);
+        const analyzed = await analyzeFoodFromImage(originalUri);
         
         if ((analyzed as any).notFood) {
           console.warn('[Scan] No food detected');
@@ -114,7 +98,7 @@ export default function ScanScreen(): React.ReactElement {
               fatG: nutritionData.fatG.toString(),
               healthScore: nutritionData.healthScore.toString(),
               // Encode once; the router will decode automatically. We'll decode intentionally on the destination.
-              imageUri: encodeURIComponent(safeUri),
+              imageUri: encodeURIComponent(originalUri),
             }
           });
         }
@@ -131,7 +115,7 @@ export default function ScanScreen(): React.ReactElement {
             proteinG: "0",
             fatG: "0",
             healthScore: "5",
-            imageUri: encodeURIComponent(safeUri),
+            imageUri: encodeURIComponent(originalUri),
           }
         });
       }
