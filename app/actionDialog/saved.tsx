@@ -1,7 +1,10 @@
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { FontAwesome } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import React from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type SavedItem = {
@@ -17,6 +20,10 @@ const mockData: SavedItem[] = [
 ];
 
 export default function SavedScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
+  const styles = createStyles(colors);
+  
   const insets = useSafeAreaInsets();
 
   const handleClose = () => {
@@ -24,12 +31,15 @@ export default function SavedScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}> 
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Status Bar */}
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      
       {/* Header with close button */}
       <View style={styles.header}>
         <Text style={styles.title}>Food Saved</Text>
         <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-          <FontAwesome name="times" size={20} color="#000" />
+          <FontAwesome name="times" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
       
@@ -61,10 +71,10 @@ export default function SavedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#fff', 
+    backgroundColor: colors.background, 
     paddingHorizontal: 16 
   },
   header: {
@@ -77,27 +87,27 @@ const styles = StyleSheet.create({
   title: { 
     fontSize: 28, 
     fontWeight: 'bold', 
-    color: '#000' 
+    color: colors.textPrimary 
   },
   closeButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.cardSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   subtitle: { 
     fontSize: 14, 
-    color: '#666', 
+    color: colors.textSecondary, 
     marginBottom: 16 
   },
   card: { 
-    backgroundColor: '#fff', 
+    backgroundColor: colors.card, 
     borderRadius: 12, 
     padding: 14, 
     marginTop: 12, 
-    shadowColor: '#000', 
+    shadowColor: colors.shadow, 
     shadowOpacity: 0.08, 
     shadowRadius: 6, 
     shadowOffset: { width: 0, height: 2 }, 
@@ -112,16 +122,16 @@ const styles = StyleSheet.create({
     width: 36, 
     height: 36, 
     borderRadius: 18, 
-    backgroundColor: '#EEE' 
+    backgroundColor: colors.cardSecondary 
   },
   cardTitle: { 
     fontSize: 16, 
     fontWeight: '700', 
-    color: '#000' 
+    color: colors.textPrimary 
   },
   cardSubtitle: { 
     fontSize: 12, 
-    color: '#666', 
+    color: colors.textSecondary, 
     marginTop: 2 
   },
   emptyContainer: { 
@@ -131,12 +141,12 @@ const styles = StyleSheet.create({
   emptyTitle: { 
     fontSize: 16, 
     fontWeight: 'bold', 
-    color: '#000', 
+    color: colors.textPrimary, 
     marginBottom: 8 
   },
   emptyDescription: { 
     fontSize: 14, 
-    color: '#666' 
+    color: colors.textSecondary 
   },
 });
 

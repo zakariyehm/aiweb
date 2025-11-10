@@ -34,6 +34,8 @@ export const Colors = {
     buttonPrimary: '#000',
     buttonSecondary: '#fff',
     buttonDisabled: '#E5E5E5',
+    buttonText: '#fff',
+    buttonTextSecondary: '#000',
     
     // Status colors
     success: '#28a745',
@@ -87,6 +89,8 @@ export const Colors = {
     buttonPrimary: '#FFFFFF',
     buttonSecondary: '#1C1C1E',
     buttonDisabled: '#3A3A3C',
+    buttonText: '#000000',
+    buttonTextSecondary: '#FFFFFF',
     
     // Status colors - Brighter for dark mode
     success: '#30D158',   // iOS green

@@ -1,15 +1,22 @@
 import type { Id } from '@/convex/_generated/dataModel';
+import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/hooks/useAuth';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import useDailyNutrition from '@/hooks/useDailyNutrition';
 import useStreak from '@/hooks/useStreak';
 import { ScanResult } from '@/types/scan';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, BackHandler, Image, PanResponder, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ScanResultsModal() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
+  const styles = createStyles(colors);
+  
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const { userSession } = useAuth();
@@ -176,6 +183,9 @@ export default function ScanResultsModal() {
 
   return (
     <View style={styles.container}>
+      {/* iOS Status Bar */}
+      <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
+      
       {/* Top Section - 40% of screen (Image) */}
       <View style={styles.topSection} pointerEvents="none">
         {/* Food Image - Full background */}
@@ -183,7 +193,7 @@ export default function ScanResultsModal() {
           <Image source={{ uri: scanResult.imageUri }} style={styles.foodImage} resizeMode="cover" />
         ) : (
           <View style={styles.noImagePlaceholder}>
-            <Ionicons name="restaurant" size={64} color="#ccc" />
+            <Ionicons name="restaurant" size={64} color={colors.textTertiary} />
             <Text style={styles.noImageText}>No image available</Text>
           </View>
         )}
@@ -196,7 +206,7 @@ export default function ScanResultsModal() {
         accessibilityRole="button"
         accessibilityLabel="Close scan results"
       >
-        <Ionicons name="close" size={24} color="#000" />
+        <Ionicons name="close" size={24} color={colors.textPrimary} />
       </TouchableOpacity>
 
       {/* Bottom Section - rounded, scrollable content */}
@@ -224,7 +234,7 @@ export default function ScanResultsModal() {
 
           {/* Calories Card */}
           <View style={styles.caloriesCard}>
-            <Ionicons name="flame" size={24} color="#000" />
+            <Ionicons name="flame" size={24} color={colors.textPrimary} />
             <Text style={styles.caloriesLabel}>Calories</Text>
             <Text style={styles.caloriesValue}>{Math.round(scanResult.calories)}</Text>
           </View>
@@ -233,7 +243,7 @@ export default function ScanResultsModal() {
           <View style={styles.macrosRow}>
             <View style={styles.macroCard}>
               <View style={styles.macroIconContainer}>
-                <Ionicons name="water" size={20} color="#FF6B9D" />
+                <Ionicons name="water" size={20} color={colors.protein} />
               </View>
               <Text style={styles.macroLabel}>Protein</Text>
               <Text style={styles.macroValue}>{formatNutritionValue(scanResult.proteinG)}</Text>
@@ -241,7 +251,7 @@ export default function ScanResultsModal() {
 
             <View style={styles.macroCard}>
               <View style={styles.macroIconContainer}>
-                <Ionicons name="leaf" size={20} color="#FFB366" />
+                <Ionicons name="leaf" size={20} color={colors.carbs} />
               </View>
               <Text style={styles.macroLabel}>Carbs</Text>
               <Text style={styles.macroValue}>{formatNutritionValue(scanResult.carbsG)}</Text>
@@ -249,7 +259,7 @@ export default function ScanResultsModal() {
 
             <View style={styles.macroCard}>
               <View style={styles.macroIconContainer}>
-                <Ionicons name="water" size={20} color="#66B3FF" />
+                <Ionicons name="water" size={20} color={colors.fat} />
               </View>
               <Text style={styles.macroLabel}>Fats</Text>
               <Text style={styles.macroValue}>{formatNutritionValue(scanResult.fatG)}</Text>
@@ -260,8 +270,8 @@ export default function ScanResultsModal() {
           <View style={styles.healthScoreCard}>
             <View style={styles.healthScoreHeader}>
               <View style={styles.healthIconContainer}>
-                <Ionicons name="heart" size={20} color="#FF6B9D" />
-                <Ionicons name="flash" size={12} color="#FF6B9D" style={styles.flashIcon} />
+                <Ionicons name="heart" size={20} color={colors.error} />
+                <Ionicons name="flash" size={12} color={colors.error} style={styles.flashIcon} />
               </View>
               <Text style={styles.healthScoreLabel}>Health Score</Text>
               <Text style={styles.healthScoreValue}>{scanResult.healthScore}/10</Text>
@@ -284,7 +294,7 @@ export default function ScanResultsModal() {
               accessibilityRole="button"
               accessibilityLabel={`Fix nutrition results for ${scanResult.title}`}
             >
-              <FontAwesome name="star" size={16} color="#000" />
+              <FontAwesome name="star" size={16} color={colors.textPrimary} />
               <Text style={styles.fixResultsText}>Fix Results</Text>
             </TouchableOpacity>
             
@@ -326,14 +336,14 @@ export default function ScanResultsModal() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: colors.background,
   },
   topSection: {
     ...StyleSheet.absoluteFillObject as any,
-    backgroundColor: '#000',
+    backgroundColor: colors.background,
   },
   sheet: {
     position: 'absolute',
@@ -341,10 +351,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: Platform.OS === 'ios' ? 0.15 : 0.1,
     shadowRadius: 10,
@@ -355,7 +365,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginTop: 8,
     marginBottom: 8,
   },
@@ -365,10 +375,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -384,12 +394,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.cardSecondary,
   },
   noImageText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#888',
+    color: colors.textTertiary,
   },
   imageOverlay: {
     position: 'absolute',
@@ -397,7 +407,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 60,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: colors.modalBackground,
   },
   contentContainer: {
     flex: 1,
@@ -413,32 +423,35 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   timeChip: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#E5E7EB',
+    backgroundColor: colors.cardSecondary,
+    borderColor: colors.border,
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  timeChipText: { fontSize: 12, color: '#444' },
+  timeChipText: { 
+    fontSize: 12, 
+    color: colors.textSecondary 
+  },
   timestamp: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginLeft: 8,
   },
   foodTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 14,
   },
   caloriesCard: {
-    backgroundColor: '#fbfbfb',
+    backgroundColor: colors.cardSecondary,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -446,14 +459,14 @@ const styles = StyleSheet.create({
   },
   caloriesLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 6,
     marginBottom: 2,
   },
   caloriesValue: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
   },
   macrosRow: {
     flexDirection: 'row',
@@ -463,12 +476,12 @@ const styles = StyleSheet.create({
   },
   macroCard: {
     flex: 1,
-    minWidth: 80, // Ensure cards don't get too small
-    backgroundColor: '#fbfbfb',
+    minWidth: 80,
+    backgroundColor: colors.cardSecondary,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -479,21 +492,21 @@ const styles = StyleSheet.create({
   },
   macroLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 4,
     textAlign: 'center',
   },
   macroValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
   },
   healthScoreCard: {
-    backgroundColor: '#fbfbfb',
+    backgroundColor: colors.cardSecondary,
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -516,22 +529,22 @@ const styles = StyleSheet.create({
   healthScoreLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
   },
   healthScoreValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
   },
   healthBarTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#e9ecef',
+    backgroundColor: colors.border,
     overflow: 'hidden',
   },
   healthBarFill: {
     height: '100%',
-    backgroundColor: '#28a745',
+    backgroundColor: colors.success,
     borderRadius: 4,
   },
   actionButtons: {
@@ -544,13 +557,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: '#000',
+    borderColor: colors.border,
     borderRadius: 12,
     paddingVertical: 16,
     gap: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -559,15 +572,15 @@ const styles = StyleSheet.create({
   fixResultsText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
   },
   doneButton: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: colors.buttonPrimary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -579,7 +592,7 @@ const styles = StyleSheet.create({
   doneButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.buttonText,
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -591,9 +604,8 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.buttonText,
     borderTopColor: 'transparent',
     borderRadius: 10,
-    // animation: 'spin 1s linear infinite', // This line is removed as per the edit hint
   },
 });

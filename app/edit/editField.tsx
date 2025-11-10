@@ -1,6 +1,8 @@
+import { Colors } from '@/constants/Colors';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/useAuth';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -8,6 +10,10 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function EditFieldModal() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
+  const styles = createStyles(colors);
+  
   const params = useLocalSearchParams();
   const field = String(params.field || '');
   const label = String(params.label || field || 'Edit');
@@ -241,20 +247,24 @@ export default function EditFieldModal() {
               value={currentPassword}
               onChangeText={setCurrentPassword}
               placeholder="Enter current password"
+              placeholderTextColor={colors.textTertiary}
               style={[styles.inputBase, styles.underlineInput]}
               autoCapitalize="none"
               secureTextEntry
               editable={!saving}
+              keyboardAppearance={colorScheme}
             />
             <Text style={[styles.fieldLabel, { marginTop: 16 }]}>New Password</Text>
             <TextInput
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder="Enter new password"
+              placeholderTextColor={colors.textTertiary}
               style={[styles.inputBase, styles.underlineInput]}
               autoCapitalize="none"
               secureTextEntry
               editable={!saving}
+              keyboardAppearance={colorScheme}
             />
           </>
         ) : (
@@ -266,19 +276,23 @@ export default function EditFieldModal() {
                   value={phoneCountryCode}
                   onChangeText={setPhoneCountryCode}
                   placeholder="+1"
+                  placeholderTextColor={colors.textTertiary}
                   style={[styles.inputBase, styles.pillInput, { width: 90, marginRight: 8 }]}
                   keyboardType="phone-pad"
                   autoCapitalize="none"
                   editable={!saving}
+                  keyboardAppearance={colorScheme}
                 />
                 <TextInput
                   value={phoneNational}
                   onChangeText={setPhoneNational}
                   placeholder="5551234567"
+                  placeholderTextColor={colors.textTertiary}
                   style={[styles.inputBase, styles.pillInput, { flex: 1 }]}
                   keyboardType="phone-pad"
                   autoCapitalize="none"
                   editable={!saving}
+                  keyboardAppearance={colorScheme}
                 />
               </View>
             ) : (
@@ -286,11 +300,13 @@ export default function EditFieldModal() {
                 value={value}
                 onChangeText={setValue}
                 placeholder={`Enter ${label.toLowerCase()}`}
+                placeholderTextColor={colors.textTertiary}
                 style={[styles.inputBase, inputStyle]}
                 autoCapitalize={field === 'email' || field === 'username' ? 'none' : 'words'}
                 keyboardType={keyboardType as any}
                 secureTextEntry={field === 'password'}
                 editable={!saving}
+                keyboardAppearance={colorScheme}
               />
             )}
           </>
@@ -300,10 +316,10 @@ export default function EditFieldModal() {
           <Text
             style={[
               styles.availability,
-              availability === 'available' && { color: '#16a34a' },
-              availability === 'taken' && { color: '#dc2626' },
-              availability === 'checking' && { color: '#6b7280' },
-              availability === 'invalid' && { color: '#dc2626' },
+              availability === 'available' && { color: colors.success },
+              availability === 'taken' && { color: colors.error },
+              availability === 'checking' && { color: colors.textSecondary },
+              availability === 'invalid' && { color: colors.error },
             ]}
           >
             {availability === 'available' && 'Username is available.'}
@@ -345,41 +361,46 @@ export default function EditFieldModal() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#fff' },
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, gap: 12 },
-  subtitle: { fontSize: 14, color: '#6b7280', lineHeight: 20 },
-  availability: { fontSize: 13, marginTop: 8, color: '#6b7280' },
-  fieldLabel: { fontSize: 14, fontWeight: '600', color: '#111827', marginTop: 8 },
-  inputBase: { fontSize: 16, paddingHorizontal: 12, paddingVertical: 12 },
+  subtitle: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  availability: { fontSize: 13, marginTop: 8, color: colors.textSecondary },
+  fieldLabel: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginTop: 8 },
+  inputBase: { 
+    fontSize: 16, 
+    paddingHorizontal: 12, 
+    paddingVertical: 12,
+    color: colors.textPrimary,
+  },
   underlineInput: {
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
   },
   pillInput: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#f5f6f8',
+    borderColor: colors.border,
+    backgroundColor: colors.inputBackground,
     borderRadius: 18,
   },
-  removeLink: { color: '#1D9BF0', fontWeight: '600' },
+  removeLink: { color: colors.info, fontWeight: '600' },
   footer: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: colors.border,
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-  cooldownText: { textAlign: 'center', color: '#6b7280', marginBottom: 8 },
+  cooldownText: { textAlign: 'center', color: colors.textSecondary, marginBottom: 8 },
   saveBtn: {
-    backgroundColor: '#000',
+    backgroundColor: colors.buttonPrimary,
     borderRadius: 8,
     alignItems: 'center',
     paddingVertical: 14,
   },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  saveBtnText: { color: colors.buttonText, fontWeight: '700', fontSize: 16 },
 });

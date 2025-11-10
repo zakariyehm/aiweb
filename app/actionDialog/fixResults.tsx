@@ -1,11 +1,18 @@
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { ScanResult } from '@/types/scan';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function FixResultsScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
+  const styles = createStyles(colors);
+  
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   
@@ -38,6 +45,9 @@ export default function FixResultsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Status Bar */}
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity 
@@ -46,7 +56,7 @@ export default function FixResultsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back to scan results"
         >
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>AI Fix Results</Text>
         <View style={styles.headerSpacer} />
@@ -71,7 +81,7 @@ export default function FixResultsScreen() {
           </View>
 
           <View style={styles.placeholderCard}>
-            <Ionicons name="construct" size={48} color="#666" />
+            <Ionicons name="construct" size={48} color={colors.textSecondary} />
             <Text style={styles.placeholderTitle}>AI Fix Coming Soon</Text>
             <Text style={styles.placeholderText}>
               This feature will use AI to analyze and improve the nutrition data accuracy.
@@ -95,10 +105,10 @@ export default function FixResultsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -107,20 +117,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: colors.border,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.cardSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
   },
   headerSpacer: {
     width: 40,
@@ -135,11 +145,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   infoCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     borderRadius: 16,
     padding: 20,
     gap: 12,
@@ -147,15 +157,15 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   infoText: {
     fontSize: 16,
-    color: '#374151',
+    color: colors.textSecondary,
   },
   placeholderCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.cardSecondary,
     borderRadius: 16,
     padding: 32,
     alignItems: 'center',
@@ -164,11 +174,11 @@ const styles = StyleSheet.create({
   placeholderTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000',
+    color: colors.textPrimary,
   },
   placeholderText: {
     fontSize: 16,
-    color: '#6b7280',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -177,7 +187,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   doneButton: {
-    backgroundColor: '#000',
+    backgroundColor: colors.buttonPrimary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -185,6 +195,6 @@ const styles = StyleSheet.create({
   doneButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.buttonText,
   },
 });
