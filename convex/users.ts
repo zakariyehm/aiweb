@@ -376,3 +376,58 @@ export const updateDesiredWeight = mutation({
   },
 });
 
+/**
+ * Delete user account and all associated data
+ * Deletes: user record, all meals, all daily entries, username mapping
+ */
+export const deleteAccount = mutation({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    // 1. Delete all meals for this user
+    const meals = await ctx.db
+      .query("meals")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    
+    for (const meal of meals) {
+      await ctx.db.delete(meal._id);
+    }
+    
+    // 2. Delete all daily entries for this user
+    const dailyEntries = await ctx.db
+      .query("daily")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    
+    for (const daily of dailyEntries) {
+      await ctx.db.delete(daily._id);
+    }
+    
+    // 3. Delete username mapping if exists
+    if (user.profile?.usernameLower) {
+      const usernameLower = user.profile.usernameLower;
+      const usernameEntry = await ctx.db
+        .query("usernames")
+        .withIndex("by_username", (q) => q.eq("username", usernameLower))
+        .first();
+      
+      if (usernameEntry && usernameEntry.userId === args.userId) {
+        await ctx.db.delete(usernameEntry._id);
+      }
+    }
+    
+    // 4. Delete the user record itself
+    await ctx.db.delete(args.userId);
+    
+    return { success: true };
+  },
+});
+

@@ -43,6 +43,7 @@ export default defineSchema({
       usernameManualChangedAt: v.optional(v.number()),
       lastUsernameChangeAt: v.optional(v.number()),
       email: v.optional(v.string()),
+      notificationsEnabled: v.optional(v.boolean()), // User notification preference
     }),
     
     // Nutrition plan (BMR, TDEE, macros)

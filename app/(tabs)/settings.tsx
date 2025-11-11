@@ -4,10 +4,11 @@ import type { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/useAuth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { FontAwesome } from '@expo/vector-icons';
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface SettingItemProps {
@@ -37,9 +38,22 @@ export default function SettingsScreen() {
   const [referral, setReferral] = useState<any>({});
   const { logout, userSession } = useAuth();
   const userId = userSession?.userId as Id<"users"> | undefined;
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Fetch user data (reactive)
   const userData = useQuery(api.users.get, userId ? { userId } : "skip");
+  
+  // Delete account mutation
+  const deleteAccount = useMutation(api.users.deleteAccount);
+  
+  // Update field mutation for notifications
+  const updateField = useMutation(api.users.updateField);
+  
+  // Get notifications preference from profile (default to true)
+  const notificationsEnabled = profile.notificationsEnabled !== undefined ? profile.notificationsEnabled : true;
+
+  // Get app version from expo config
+  const appVersion = Constants.expoConfig?.version || '1.0.0';
 
   useEffect(() => {
     if (userData) {
@@ -194,14 +208,62 @@ export default function SettingsScreen() {
         {/* ACCOUNT ACTIONS */}
         <View style={styles.listSection}>
           <Text style={styles.sectionBadge}>ACCOUNT ACTIONS</Text>
+          
+          {/* Notifications Toggle */}
+          <View style={styles.row}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowLabel}>Notifications</Text>
+            </View>
+            <View style={styles.rowRight}>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={async (value) => {
+                  if (!userId) return;
+                  try {
+                    await updateField({ userId, field: 'notificationsEnabled', value });
+                    // Update local state immediately for better UX
+                    setProfile({ ...profile, notificationsEnabled: value });
+                  } catch (error) {
+                    console.error('Failed to update notifications setting:', error);
+                    Alert.alert('Error', 'Failed to update notifications setting');
+                  }
+                }}
+                trackColor={{ false: '#e0e0e0', true: colors.tint }}
+                thumbColor={notificationsEnabled ? '#fff' : '#f4f3f4'}
+              />
+            </View>
+          </View>
+          
           {[
-            { label: 'Notifications' },
-            { label: 'Delete Account' },
-            { label: 'Privacy Policy' },
-            { label: 'Terms of Service' },
-            { label: 'Version', value: '1.0.98', showChevron: false },
+            { 
+              label: 'Privacy Policy', 
+              url: 'https://github.com/abti33/ai',
+              onPress: async () => {
+                const url = 'https://github.com/abti33/ai';
+                const supported = await Linking.canOpenURL(url);
+                if (supported) {
+                  await Linking.openURL(url);
+                } else {
+                  Alert.alert('Error', 'Cannot open this URL');
+                }
+              }
+            },
+            { 
+              label: 'Terms of Service', 
+              url: 'https://github.com/abti33/ai',
+              onPress: async () => {
+                const url = 'https://github.com/abti33/ai';
+                const supported = await Linking.canOpenURL(url);
+                if (supported) {
+                  await Linking.openURL(url);
+                } else {
+                  Alert.alert('Error', 'Cannot open this URL');
+                }
+              }
+            },
+            { label: 'Version', value: appVersion, showChevron: false },
           ].map((row, idx) => (
-            <TouchableOpacity key={row.label + idx} style={styles.row} onPress={() => {}}>
+            <TouchableOpacity key={row.label + idx} style={styles.row} onPress={row.onPress || (() => {})}>
               <View style={styles.rowLeft}>
                 <Text style={styles.rowLabel}>{row.label}</Text>
               </View>
@@ -211,6 +273,62 @@ export default function SettingsScreen() {
               </View>
             </TouchableOpacity>
           ))}
+          
+          {/* Delete Account - Same style as other items */}
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => {
+              Alert.alert(
+                'Delete Account',
+                'Are you sure you want to delete your account? This action cannot be undone. All your data including meals, progress, and profile information will be permanently deleted.',
+                [
+                  {
+                    text: 'Cancel',
+                    style: 'cancel',
+                  },
+                  {
+                    text: 'Delete Account',
+                    style: 'destructive',
+                    onPress: async () => {
+                      if (!userId) {
+                        Alert.alert('Error', 'User ID not found');
+                        return;
+                      }
+
+                      setIsDeleting(true);
+                      try {
+                        await deleteAccount({ userId });
+                        // Logout and navigate to onboarding after successful deletion
+                        await logout();
+                        router.replace('/onboarding/splash');
+                      } catch (error: any) {
+                        console.error('Delete account error:', error);
+                        Alert.alert(
+                          'Error',
+                          error.message || 'Failed to delete account. Please try again.',
+                          [{ text: 'OK' }]
+                        );
+                        setIsDeleting(false);
+                      }
+                    },
+                  },
+                ],
+                { cancelable: true }
+              );
+            }}
+            disabled={isDeleting}
+          >
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowLabel}>Delete Account</Text>
+            </View>
+            <View style={styles.rowRight}>
+              {isDeleting ? (
+                <ActivityIndicator size="small" color={colors.error} />
+              ) : (
+                <FontAwesome name="chevron-right" size={16} color="#bbb" />
+              )}
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Logout */}
