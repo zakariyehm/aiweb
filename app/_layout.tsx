@@ -15,7 +15,6 @@ export default function RootLayout() {
   });
 
   if (!loaded) {
-    // Async font loading only occurs in development.
     return null;
   }
 
@@ -27,53 +26,12 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             
-            {/* Modal Screens - Configured to not block tab bar */}
-            <Stack.Screen 
-              name="scanResults" 
-              options={{ 
-                presentation: 'modal',
-                headerShown: false,
-                animation: 'slide_from_bottom',
-                gestureEnabled: true,
-                contentStyle: { backgroundColor: 'transparent' },
-              }} 
-            />
-            <Stack.Screen 
-              name="fixResults" 
-              options={{ 
-                presentation: 'modal',
-                headerShown: false,
-                gestureEnabled: true,
-                contentStyle: { backgroundColor: 'transparent' },
-              }} 
-            />
-            <Stack.Screen 
-              name="upload" 
-              options={{ 
-                presentation: 'modal',
-                headerShown: false,
-                gestureEnabled: true,
-                contentStyle: { backgroundColor: 'transparent' },
-              }} 
-            />
-            <Stack.Screen 
-              name="saved" 
-              options={{ 
-                presentation: 'modal',
-                headerShown: false,
-                gestureEnabled: true,
-                contentStyle: { backgroundColor: 'transparent' },
-              }} 
-            />
-            <Stack.Screen 
-              name="viewMeals" 
-              options={{ 
-                presentation: 'modal',
-                headerShown: false,
-                gestureEnabled: true,
-                contentStyle: { backgroundColor: 'transparent' },
-              }} 
-            />
+            <Stack.Screen name="scan" options={{ presentation: 'modal', title: 'Scan' }} />
+            <Stack.Screen name="scanResults" options={{ presentation: 'modal', headerShown: false }} />
+            <Stack.Screen name="fixResults" options={{ presentation: 'modal', title: 'Fix Results' }} />
+            <Stack.Screen name="upload" options={{ presentation: 'modal', title: 'Upload' }} />
+            <Stack.Screen name="saved" options={{ presentation: 'modal', title: 'Saved' }} />
+            <Stack.Screen name="viewMeals" options={{ presentation: 'modal', title: 'View Meals' }} />
             
             <Stack.Screen name="+not-found" />
           </Stack>

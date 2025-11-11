@@ -264,6 +264,39 @@ export default function ScanResultsModal() {
       {/* iOS Status Bar */}
       <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
       
+      {/* Top Section - Food Image */}
+      <View style={styles.topSection} pointerEvents="auto">
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.foodImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.noImagePlaceholder}>
+            <Ionicons name="restaurant" size={64} color={colors.textTertiary} />
+            <Text style={styles.noImageText}>No image available</Text>
+          </View>
+        )}
+        
+        {/* Header with Back and Delete buttons - Overlay on image */}
+        <View style={[styles.header, { paddingTop: insets.top - 5 }]}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.deleteButton} 
+            onPress={handleDelete}
+            accessibilityRole="button"
+            accessibilityLabel="Delete scan results"
+          >
+            <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+      
       {/* Transparent bottom area to allow tab bar touches */}
       <View 
         style={{
@@ -277,38 +310,6 @@ export default function ScanResultsModal() {
           zIndex: 999,
         }}
       />
-      
-      {/* Top Section - Food Image */}
-      <View style={styles.topSection} pointerEvents="auto">
-        {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.foodImage} resizeMode="cover" />
-        ) : (
-          <View style={styles.noImagePlaceholder}>
-            <Ionicons name="restaurant" size={64} color={colors.textTertiary} />
-            <Text style={styles.noImageText}>No image available</Text>
-          </View>
-        )}
-        
-        {/* Back Button - Left side, circular black */}
-        <TouchableOpacity 
-          style={[styles.backButton, { top: insets.top + 20 }]} 
-          onPress={handleClose}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        {/* Delete Button - Right side, red square */}
-        <TouchableOpacity 
-          style={[styles.deleteButton, { top: insets.top + 20 }]} 
-          onPress={handleDelete}
-          accessibilityRole="button"
-          accessibilityLabel="Delete scan results"
-        >
-          <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
 
       {/* Bottom Section - Dark blue-grey sheet */}
       <Animated.View 
@@ -318,7 +319,8 @@ export default function ScanResultsModal() {
             transform: [
               { translateY: Animated.add(slideAnim, dragY) }
             ],
-            bottom: tabBarHeight, // Leave space for tab bar
+            bottom: 0,
+            height: '65%',
           }
         ]}
         pointerEvents="auto"
@@ -331,7 +333,7 @@ export default function ScanResultsModal() {
         <ScrollView 
           ref={scrollViewRef}
           style={styles.contentContainer} 
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={{ paddingBottom: tabBarHeight + 24 }}
           showsVerticalScrollIndicator={false}
           bounces
           scrollEnabled={true}
@@ -347,11 +349,11 @@ export default function ScanResultsModal() {
 
           {/* Calories Button - Pink with flame icon and edit pencil */}
           <TouchableOpacity style={styles.caloriesButton}>
-            <Ionicons name="flame" size={20} color="#FF3B30" style={styles.flameIcon} />
+            <Ionicons name="flame" size={20} color={colors.error} style={styles.flameIcon} />
             <Text style={styles.caloriesButtonText}>
               {isAnalyzing ? '0' : Math.round(scanResult?.calories || 0)} Calories
             </Text>
-            <Ionicons name="pencil" size={16} color="#007AFF" style={styles.editIcon} />
+            <Ionicons name="pencil" size={16} color={colors.info} style={styles.editIcon} />
           </TouchableOpacity>
 
           {/* Macronutrients - Three columns */}
@@ -417,7 +419,7 @@ export default function ScanResultsModal() {
           {/* View Vitamin Data Button */}
           {!isAnalyzing && scanResult && (
             <TouchableOpacity style={styles.vitaminDataButton}>
-              <Ionicons name="document-text" size={18} color="#000000" />
+              <Ionicons name="document-text" size={18} color={colors.textPrimary} />
               <Text style={styles.vitaminDataText}>View Vitamin Data</Text>
             </TouchableOpacity>
           )}
@@ -435,7 +437,7 @@ export default function ScanResultsModal() {
               accessibilityRole="button"
               accessibilityLabel="AI Fix nutrition results"
             >
-              <FontAwesome name="star" size={16} color={isAnalyzing ? '#8E8E93' : '#FFFFFF'} />
+              <FontAwesome name="star" size={16} color={isAnalyzing ? colors.textTertiary : colors.textPrimary} />
               <Text style={[
                 styles.fixResultsText,
                 isAnalyzing && styles.fixResultsTextDisabled
@@ -488,6 +490,19 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     flex: 1,
     backgroundColor: colors.background,
   },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 4,
+    backgroundColor: 'transparent',
+    zIndex: 10,
+  },
   topSection: {
     height: '40%',
     width: '100%',
@@ -495,33 +510,27 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     position: 'relative',
   },
   backButton: {
-    position: 'absolute',
-    left: 20,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
   },
   deleteButton: {
-    position: 'absolute',
-    right: 20,
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#FF3B30',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.error,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
   },
   sheet: {
     position: 'absolute',
-    top: '35%',
     left: 0,
     right: 0,
-    bottom: 0, // Will be overridden with dynamic value
+    bottom: 0,
+    height: '65%',
     backgroundColor: colors.modalBackground,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -571,7 +580,7 @@ const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark'
     textAlign: 'left',
   },
   caloriesButton: {
-    backgroundColor: colorScheme === 'dark' ? colors.cardSecondary : '#FFE5E5',
+    backgroundColor: colors.cardSecondary,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
