@@ -20,7 +20,7 @@ const OPENAI_API_KEY =
   (extra.openaiApiKey as string | undefined) || (process.env.EXPO_PUBLIC_OPENAI_API_KEY as string | undefined);
 
 
-export async function analyzeFoodFromImage(uri: string): Promise<Nutrition | { notFood: true }> {
+export async function analyzeFoodFromImage(uri: string, signal?: AbortSignal): Promise<Nutrition | { notFood: true }> {
   // Check for OpenAI API Key
   if (!OPENAI_API_KEY) {
     console.error('[analyzeFoodFromImage] Missing OpenAI API key');
@@ -96,7 +96,13 @@ Be as accurate as possible with your estimates. Provide realistic numbers for a 
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify(requestBody),
+      signal: signal,
     });
+
+    // Check if request was aborted
+    if (signal?.aborted) {
+      throw new DOMException('Request aborted', 'AbortError');
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -109,6 +115,12 @@ Be as accurate as possible with your estimates. Provide realistic numbers for a 
     }
 
     const responseData = await response.json();
+    
+    // Check if request was aborted after response
+    if (signal?.aborted) {
+      throw new DOMException('Request aborted', 'AbortError');
+    }
+    
     console.log('[OpenAI] Received response from OpenAI');
 
     // Extract the text content from OpenAI response
@@ -169,7 +181,12 @@ Be as accurate as possible with your estimates. Provide realistic numbers for a 
 
     console.log('[OpenAI] Final result:', result);
     return result;
-  } catch (error) {
+  } catch (error: any) {
+    // Don't log AbortError as an error - it's expected when user cancels
+    if (error?.name === 'AbortError' || error?.message?.includes('Aborted')) {
+      console.log('[analyzeFoodFromImage] Request cancelled');
+      throw error; // Re-throw so caller knows it was cancelled
+    }
     console.error('[analyzeFoodFromImage] Failed', error);
     throw error instanceof Error ? error : new Error('Unknown analysis error');
   }

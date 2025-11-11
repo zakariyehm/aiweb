@@ -27,6 +27,7 @@ export default function ScanResultsModal() {
   const slideAnim = useRef(new Animated.Value(50)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [formattedTime, setFormattedTime] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -47,15 +48,36 @@ export default function ScanResultsModal() {
   const hasNutritionData = params.title && params.calories;
   const imageUri = params.imageUri ? decodeURIComponent(params.imageUri as string) : '';
 
+  // Cleanup: abort request ONLY when component unmounts (user navigates away)
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        console.log('[ScanResults] Component unmounting - cancelling API request');
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []); // Empty array = only run on mount/unmount
+
   // Analyze image if we don't have nutrition data
   useEffect(() => {
     if (!hasNutritionData && imageUri && !isAnalyzing && !scanResult) {
       setIsAnalyzing(true);
       
+      // Create new AbortController for this request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+      
       const analyzeImage = async () => {
         try {
           console.log('[ScanResults] Starting analysis');
-          const analyzed = await analyzeFoodFromImage(imageUri);
+          const analyzed = await analyzeFoodFromImage(imageUri, abortController.signal);
+          
+          // Check if request was aborted
+          if (abortController.signal.aborted) {
+            console.log('[ScanResults] Analysis cancelled');
+            return;
+          }
           
           if ((analyzed as any).notFood) {
             console.warn('[ScanResults] No food detected');
@@ -81,19 +103,29 @@ export default function ScanResultsModal() {
               imageUri: imageUri,
             });
           }
-        } catch (err) {
+        } catch (err: any) {
+          // Ignore abort errors
+          if (err.name === 'AbortError' || abortController.signal.aborted) {
+            console.log('[ScanResults] Analysis cancelled by user');
+            return;
+          }
           console.error('[ScanResults] Analysis error:', err);
-          setScanResult({
-            title: "Analysis failed",
-            calories: 0,
-            carbsG: 0,
-            proteinG: 0,
-            fatG: 0,
-            healthScore: 5,
-            imageUri: imageUri,
-          });
+          // Only set error state if not aborted
+          if (!abortController.signal.aborted) {
+            setScanResult({
+              title: "Analysis failed",
+              calories: 0,
+              carbsG: 0,
+              proteinG: 0,
+              fatG: 0,
+              healthScore: 5,
+              imageUri: imageUri,
+            });
+          }
         } finally {
-          setIsAnalyzing(false);
+          if (!abortController.signal.aborted) {
+            setIsAnalyzing(false);
+          }
         }
       };
       
@@ -110,7 +142,7 @@ export default function ScanResultsModal() {
         imageUri: imageUri,
       });
     }
-  }, [hasNutritionData, imageUri, isAnalyzing, scanResult, params]);
+  }, [hasNutritionData, imageUri]); // Removed isAnalyzing, scanResult, params - only trigger when imageUri or hasNutritionData changes
 
   // Slide-up animation on mount
   useEffect(() => {
@@ -185,6 +217,12 @@ export default function ScanResultsModal() {
       onPanResponderRelease: (_, gesture) => {
         // If swiped down more than 100px or with velocity > 0.5, close modal
         if (gesture.dy > 100 || gesture.vy > 0.5) {
+          // Cancel any ongoing API request
+          if (abortControllerRef.current) {
+            console.log('[ScanResults] Cancelling API request on swipe down');
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+          }
           Animated.timing(dragY, {
             toValue: 1000,
             duration: 200,
@@ -206,11 +244,23 @@ export default function ScanResultsModal() {
   ).current;
 
   const handleClose = () => {
+    // Cancel any ongoing API request
+    if (abortControllerRef.current) {
+      console.log('[ScanResults] Cancelling API request on close');
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     // Go back to home screen
     router.replace('/(tabs)');
   };
 
   const handleDelete = () => {
+    // Cancel any ongoing API request
+    if (abortControllerRef.current) {
+      console.log('[ScanResults] Cancelling API request on delete');
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     // Delete result and return to home
     setScanResult(null);
     router.replace('/(tabs)');
