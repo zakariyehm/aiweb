@@ -11,7 +11,8 @@ export default function TabLayout() {
   const colors = Colors[colorScheme];
 
   const openScan = () => {
-    try { router.push('/actionDialog/scan'); } catch {}
+    // Navigate to the actionDialog tab which shows the scan component
+    try { router.push('/(tabs)/actionDialog'); } catch {}
   };
 
   return (

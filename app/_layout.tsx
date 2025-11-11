@@ -26,7 +26,38 @@ export default function RootLayout() {
           <Stack>
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="actionDialog" options={{ headerShown: false }} />
+            
+            {/* Modal Screens */}
+            <Stack.Screen 
+              name="scanResults" 
+              options={{ 
+                presentation: 'modal',
+                headerShown: false,
+                animation: 'slide_from_bottom',
+              }} 
+            />
+            <Stack.Screen 
+              name="fixResults" 
+              options={{ 
+                presentation: 'modal',
+                headerShown: false,
+              }} 
+            />
+            <Stack.Screen 
+              name="upload" 
+              options={{ 
+                presentation: 'modal',
+                headerShown: false,
+              }} 
+            />
+            <Stack.Screen 
+              name="saved" 
+              options={{ 
+                presentation: 'modal',
+                headerShown: false,
+              }} 
+            />
+            
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style="auto" />

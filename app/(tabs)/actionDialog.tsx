@@ -1,8 +1,7 @@
-// Placeholder screen kept only to maintain the center tab identity.
-// Navigation to this route is disabled in the tab config; the + button opens a modal instead.
+// Center tab (+) button screen - opens camera scan
+import ScanScreenComponent from '@/components/scan/scanComponent';
 import React from 'react';
-import { View } from 'react-native';
 
-export default function ActionDialogPlaceholder() {
-  return <View style={{ flex: 1, backgroundColor: 'transparent' }} />;
+export default function ActionDialogScreen() {
+  return <ScanScreenComponent />;
 }
