@@ -65,6 +65,15 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: 'transparent' },
               }} 
             />
+            <Stack.Screen 
+              name="viewMeals" 
+              options={{ 
+                presentation: 'modal',
+                headerShown: false,
+                gestureEnabled: true,
+                contentStyle: { backgroundColor: 'transparent' },
+              }} 
+            />
             
             <Stack.Screen name="+not-found" />
           </Stack>

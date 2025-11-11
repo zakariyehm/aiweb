@@ -1,117 +1,57 @@
-import { Colors } from '@/constants/Colors';
-import { FontAwesome } from '@expo/vector-icons';
-import { Tabs, router } from 'expo-router';
+import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform, TouchableOpacity, View } from 'react-native';
 
+import { HapticTab } from '@/components/haptic-tab';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme() ?? 'light';
-  const colors = Colors[colorScheme];
-
-  const openScan = () => {
-    // Navigate to the actionDialog tab which shows the scan component
-    try { router.push('/(tabs)/actionDialog'); } catch {}
-  };
+  const colorScheme = useColorScheme();
 
   return (
-    <>
     <Tabs
       screenOptions={{
+        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarActiveTintColor: colors.tint,
-        tabBarInactiveTintColor: colors.tabIconDefault,
-        tabBarLabelStyle: { 
-          fontSize: 12, 
-          fontWeight: '600', 
-          marginBottom: Platform.OS === 'ios' ? 0 : 2 
-        },
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          height: Platform.OS === 'ios' ? 85 : 60,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 5,
-          paddingTop: 5,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          zIndex: 9999,
-          elevation: 9999,
-        },
+        tabBarButton: HapticTab,
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => <FontAwesome name="home" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="analytics"
         options={{
           title: 'Analytics',
-          tabBarIcon: ({ color }) => <FontAwesome name="line-chart" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="chart.bar.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="actionDialog"
+        name="camera"
         options={{
-          title: 'action',
-          tabBarLabel: () => null,
-          // Prevent navigation to a real screen; use dialog instead
-          tabBarButton: (props) => (
-            <TouchableOpacity onPress={openScan} activeOpacity={0.8} style={props.style}> 
-              <View
-                style={{
-                  backgroundColor: colors.buttonPrimary,
-                  borderRadius: 20,
-                  width: 64,
-                  height: 36,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  shadowColor: colors.shadow,
-                  shadowOpacity: Platform.OS === 'ios' ? 0.12 : 0,
-                  shadowRadius: 4,
-                  shadowOffset: { width: 0, height: 2 },
-                  elevation: Platform.OS === 'android' ? 2 : 0,
-                }}
-              >
-                <FontAwesome name="plus" size={24} color={colors.background} />
-              </View>
-            </TouchableOpacity>
-          ),
+          title: 'Camera',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="camera.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              backgroundColor: focused ? colors.tint : 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <FontAwesome 
-                name="user" 
-                size={18} 
-                color={focused ? colors.background : color} 
-              />
-            </View>
-          ),
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color }) => <FontAwesome name="cog" size={22} color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
         }}
       />
     </Tabs>
-    </>
   );
 }
 

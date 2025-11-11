@@ -1,8 +1,8 @@
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { FontAwesome } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,24 +14,41 @@ export default function UploadScreen() {
   
   const insets = useSafeAreaInsets();
   
+  // Calculate tab bar height to leave space at bottom
+  const tabBarHeight = Platform.OS === 'ios' ? 49 + insets.bottom : 60;
+  
   const handleClose = () => {
     router.back();
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       {/* Status Bar */}
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       
+      {/* Transparent bottom area to allow tab bar touches */}
+      <View 
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: tabBarHeight,
+          backgroundColor: 'transparent',
+          pointerEvents: 'none',
+          zIndex: 999,
+        }}
+      />
+      
       {/* Header with close button */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.title}>Upload</Text>
         <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
           <FontAwesome name="times" size={20} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
       
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingBottom: tabBarHeight + 20 }]}>
         <View style={styles.iconContainer}>
           <FontAwesome name="upload" size={60} color={colors.textTertiary} />
         </View>
@@ -56,7 +73,6 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
     marginBottom: 8,
   },
   title: { 

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function FixResultsScreen() {
@@ -15,6 +15,9 @@ export default function FixResultsScreen() {
   
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
+  
+  // Calculate tab bar height to leave space at bottom
+  const tabBarHeight = Platform.OS === 'ios' ? 49 + insets.bottom : 60;
   
   // Helper function to format nutritional values to one decimal place maximum
   const formatNutritionValue = (value: number): string => {
@@ -48,6 +51,20 @@ export default function FixResultsScreen() {
       {/* Status Bar */}
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       
+      {/* Transparent bottom area to allow tab bar touches */}
+      <View 
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: tabBarHeight,
+          backgroundColor: 'transparent',
+          pointerEvents: 'none',
+          zIndex: 999,
+        }}
+      />
+      
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <TouchableOpacity 
@@ -65,7 +82,7 @@ export default function FixResultsScreen() {
       {/* Content */}
       <ScrollView 
         style={styles.content}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 24 }}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.contentContainer}>
@@ -91,7 +108,7 @@ export default function FixResultsScreen() {
       </ScrollView>
 
       {/* Action Button */}
-      <View style={[styles.actionContainer, { paddingBottom: insets.bottom + 20 }]}>
+      <View style={[styles.actionContainer, { paddingBottom: tabBarHeight + 20 }]}>
         <TouchableOpacity 
           style={styles.doneButton} 
           onPress={handleDone}

@@ -1,22 +1,22 @@
-import type { Id } from '@/convex/_generated/dataModel';
 import { analyzeFoodFromImage, type Nutrition } from '@/constants/api';
 import { Colors } from '@/constants/Colors';
+import type { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/useAuth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import useDailyNutrition from '@/hooks/useDailyNutrition';
 import useStreak from '@/hooks/useStreak';
 import { ScanResult } from '@/types/scan';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, BackHandler, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, BackHandler, Image, PanResponder, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ScanResultsModal() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, colorScheme);
   
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
@@ -26,11 +26,15 @@ export default function ScanResultsModal() {
   const { addFoodEntry } = useDailyNutrition(userId);
   const slideAnim = useRef(new Animated.Value(50)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
+  const dragY = useRef(new Animated.Value(0)).current;
   const [formattedTime, setFormattedTime] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
-  
+
+  // Calculate tab bar height to leave space at bottom
+  const tabBarHeight = Platform.OS === 'ios' ? 49 + insets.bottom : 60;
+
   // Helper function to format nutritional values to one decimal place maximum
   const formatNutritionValue = (value: number): string => {
     if (value === 0) return '0g';
@@ -41,7 +45,7 @@ export default function ScanResultsModal() {
 
   // Check if we have nutrition data or need to analyze
   const hasNutritionData = params.title && params.calories;
-  const imageUri = params.imageUri as string;
+  const imageUri = params.imageUri ? decodeURIComponent(params.imageUri as string) : '';
 
   // Analyze image if we don't have nutrition data
   useEffect(() => {
@@ -156,9 +160,54 @@ export default function ScanResultsModal() {
     return () => sub.remove();
   }, []);
 
+  // Pan responder for swipe down to close
+  const panStartY = useRef(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gesture) => {
+        // Only respond to downward swipes from top area or when scroll is at top
+        const isTopArea = evt.nativeEvent.pageY < 300; // Top 300px of screen
+        return isTopArea && gesture.dy > 10 && Math.abs(gesture.dy) > Math.abs(gesture.dx);
+      },
+      onPanResponderGrant: () => {
+        dragY.stopAnimation((value) => {
+          panStartY.current = value;
+        });
+      },
+      onPanResponderMove: (_, gesture) => {
+        // Only allow downward swipes
+        if (gesture.dy > 0) {
+          dragY.setValue(panStartY.current + gesture.dy);
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        // If swiped down more than 100px or with velocity > 0.5, close modal
+        if (gesture.dy > 100 || gesture.vy > 0.5) {
+          Animated.timing(dragY, {
+            toValue: 1000,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            router.replace('/(tabs)');
+          });
+        } else {
+          // Snap back to original position
+          Animated.spring(dragY, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 8,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
   const handleClose = () => {
-    // Go back to camera and reopen it
-    router.replace({ pathname: '/(tabs)/actionDialog', params: { reopen: '1' } });
+    // Go back to home screen
+    router.replace('/(tabs)');
   };
 
   const handleDelete = () => {
@@ -211,9 +260,23 @@ export default function ScanResultsModal() {
   };
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <View style={styles.container}>
       {/* iOS Status Bar */}
       <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
+      
+      {/* Transparent bottom area to allow tab bar touches */}
+      <View 
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: tabBarHeight,
+          backgroundColor: 'transparent',
+          pointerEvents: 'none',
+          zIndex: 999,
+        }}
+      />
       
       {/* Top Section - Food Image */}
       <View style={styles.topSection} pointerEvents="auto">
@@ -251,15 +314,27 @@ export default function ScanResultsModal() {
       <Animated.View 
         style={[
           styles.sheet,
-          { transform: [{ translateY: slideAnim }] }
+          { 
+            transform: [
+              { translateY: Animated.add(slideAnim, dragY) }
+            ],
+            bottom: tabBarHeight, // Leave space for tab bar
+          }
         ]}
         pointerEvents="auto"
+        {...panResponder.panHandlers}
       >
+        {/* Drag handle indicator */}
+        <View style={styles.dragHandle} {...panResponder.panHandlers}>
+          <View style={styles.dragHandleBar} />
+        </View>
         <ScrollView 
+          ref={scrollViewRef}
           style={styles.contentContainer} 
-          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+          contentContainerStyle={{ paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
           bounces
+          scrollEnabled={true}
         >
           {/* Food Title */}
           <View style={styles.titleSection}>
@@ -408,7 +483,7 @@ export default function ScanResultsModal() {
   );
 }
 
-const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
+const createStyles = (colors: typeof Colors.light, colorScheme: 'light' | 'dark') => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -446,8 +521,8 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     top: '35%',
     left: 0,
     right: 0,
-    bottom: Platform.OS === 'ios' ? 85 : 60, // Leave space for tab bar
-    backgroundColor: '#2C2C2E', // Dark blue-grey like in image
+    bottom: 0, // Will be overridden with dynamic value
+    backgroundColor: colors.modalBackground,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     shadowColor: colors.shadow,
@@ -492,11 +567,11 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   foodTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     textAlign: 'left',
   },
   caloriesButton: {
-    backgroundColor: '#FFE5E5', // Light pink
+    backgroundColor: colorScheme === 'dark' ? colors.cardSecondary : '#FFE5E5',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -511,7 +586,7 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   caloriesButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.textPrimary,
     flex: 1,
   },
   editIcon: {
@@ -531,12 +606,12 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   macroValue: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   macroLabel: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.textSecondary,
     textTransform: 'lowercase',
   },
   healthScoreSection: {
@@ -545,7 +620,7 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   healthScoreLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   healthBarTrack: {
@@ -560,7 +635,7 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     borderRadius: 4,
   },
   vitaminDataButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -573,7 +648,7 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   vitaminDataText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#000000',
+    color: colors.textPrimary,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -585,7 +660,7 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3A3A3C', // Dark gray
+    backgroundColor: colors.buttonSecondary,
     borderRadius: 12,
     paddingVertical: 14,
     gap: 8,
@@ -593,11 +668,11 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   fixResultsText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   doneButton: {
     flex: 1,
-    backgroundColor: '#3A3A3C', // Dark gray
+    backgroundColor: colors.buttonPrimary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -668,5 +743,17 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   },
   fixResultsTextDisabled: {
     color: colors.textTertiary,
+  },
+  dragHandle: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  dragHandleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.textTertiary,
+    opacity: 0.5,
   },
 });
