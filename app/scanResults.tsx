@@ -211,12 +211,12 @@ export default function ScanResultsModal() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       {/* iOS Status Bar */}
       <StatusBar style={Platform.OS === 'ios' ? 'light' : 'auto'} />
       
       {/* Top Section - Food Image */}
-      <View style={styles.topSection}>
+      <View style={styles.topSection} pointerEvents="auto">
         {imageUri ? (
           <Image source={{ uri: imageUri }} style={styles.foodImage} resizeMode="cover" />
         ) : (
@@ -253,6 +253,7 @@ export default function ScanResultsModal() {
           styles.sheet,
           { transform: [{ translateY: slideAnim }] }
         ]}
+        pointerEvents="auto"
       >
         <ScrollView 
           style={styles.contentContainer} 
@@ -445,7 +446,7 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
     top: '35%',
     left: 0,
     right: 0,
-    bottom: 0,
+    bottom: Platform.OS === 'ios' ? 85 : 60, // Leave space for tab bar
     backgroundColor: '#2C2C2E', // Dark blue-grey like in image
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,

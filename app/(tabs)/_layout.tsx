@@ -27,19 +27,16 @@ export default function TabLayout() {
           fontWeight: '600', 
           marginBottom: Platform.OS === 'ios' ? 0 : 2 
         },
-        tabBarStyle: Platform.select({
-          ios: { 
-            position: 'absolute', 
-            backgroundColor: colors.card,
-            borderTopColor: colors.border,
-            borderTopWidth: colorScheme === 'dark' ? 1 : 0,
-          },
-          default: { 
-            backgroundColor: colors.card,
-            borderTopColor: colors.border,
-            borderTopWidth: 1,
-          },
-        }),
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          height: Platform.OS === 'ios' ? 85 : 60,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 5,
+          paddingTop: 5,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          zIndex: 9999,
+          elevation: 9999,
+        },
       }}>
       <Tabs.Screen
         name="index"

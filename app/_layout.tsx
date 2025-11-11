@@ -27,13 +27,15 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             
-            {/* Modal Screens */}
+            {/* Modal Screens - Configured to not block tab bar */}
             <Stack.Screen 
               name="scanResults" 
               options={{ 
                 presentation: 'modal',
                 headerShown: false,
                 animation: 'slide_from_bottom',
+                gestureEnabled: true,
+                contentStyle: { backgroundColor: 'transparent' },
               }} 
             />
             <Stack.Screen 
@@ -41,6 +43,8 @@ export default function RootLayout() {
               options={{ 
                 presentation: 'modal',
                 headerShown: false,
+                gestureEnabled: true,
+                contentStyle: { backgroundColor: 'transparent' },
               }} 
             />
             <Stack.Screen 
@@ -48,6 +52,8 @@ export default function RootLayout() {
               options={{ 
                 presentation: 'modal',
                 headerShown: false,
+                gestureEnabled: true,
+                contentStyle: { backgroundColor: 'transparent' },
               }} 
             />
             <Stack.Screen 
@@ -55,6 +61,8 @@ export default function RootLayout() {
               options={{ 
                 presentation: 'modal',
                 headerShown: false,
+                gestureEnabled: true,
+                contentStyle: { backgroundColor: 'transparent' },
               }} 
             />
             
