@@ -5,7 +5,7 @@ dotenv.config({ path: '.env.local' });
 
 export default {
   expo: {
-    name: "ai",
+    name: "AI Nutrition Tracker",
     slug: "ai",
     version: "1.0.0",
     orientation: "portrait",
@@ -13,13 +13,23 @@ export default {
     scheme: "ai",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
+    splash: {
+      image: "./assets/images/splash-icon.png",
+      resizeMode: "contain",
+      backgroundColor: "#9246FF"
+    },
     ios: {
       supportsTablet: true,
+      bundleIdentifier: "com.abti33.ai",
+      buildNumber: "1",
       infoPlist: {
-        NSCameraUsageDescription: "This app needs access to camera to scan food items for nutrition analysis."
+        NSCameraUsageDescription: "This app needs access to camera to scan food items for nutrition analysis.",
+        NSPhotoLibraryUsageDescription: "This app needs access to your photos to let you share food images."
       }
     },
     android: {
+      package: "com.abti33.ai",
+      versionCode: 1,
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#ffffff"

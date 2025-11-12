@@ -183,7 +183,7 @@ export default function SettingsScreen() {
               style={styles.row}
               onPress={() =>
                 router.push({
-                  pathname: '/edit/editField',
+                  pathname: '/editscreen',
                   params: { field: row.key, label: row.label, value: row.value || '' },
                 })
               }
@@ -228,8 +228,12 @@ export default function SettingsScreen() {
                     Alert.alert('Error', 'Failed to update notifications setting');
                   }
                 }}
-                trackColor={{ false: '#e0e0e0', true: colors.tint }}
-                thumbColor={notificationsEnabled ? '#fff' : '#f4f3f4'}
+                trackColor={{ 
+                  false: colorScheme === 'dark' ? colors.border : '#e0e0e0', 
+                  true: colors.tint 
+                }}
+                thumbColor={notificationsEnabled ? colors.background : (colorScheme === 'dark' ? colors.textSecondary : '#f4f3f4')}
+                ios_backgroundColor={colorScheme === 'dark' ? colors.border : '#e0e0e0'}
               />
             </View>
           </View>

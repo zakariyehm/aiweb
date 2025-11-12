@@ -112,19 +112,19 @@ export default function ScanResultsModal() {
           console.error('[ScanResults] Analysis error:', err);
           // Only set error state if not aborted
           if (!abortController.signal.aborted) {
-            setScanResult({
-              title: "Analysis failed",
-              calories: 0,
-              carbsG: 0,
-              proteinG: 0,
-              fatG: 0,
-              healthScore: 5,
-              imageUri: imageUri,
-            });
+          setScanResult({
+            title: "Analysis failed",
+            calories: 0,
+            carbsG: 0,
+            proteinG: 0,
+            fatG: 0,
+            healthScore: 5,
+            imageUri: imageUri,
+          });
           }
         } finally {
           if (!abortController.signal.aborted) {
-            setIsAnalyzing(false);
+          setIsAnalyzing(false);
           }
         }
       };
@@ -327,23 +327,23 @@ export default function ScanResultsModal() {
         
         {/* Header with Back and Delete buttons - Overlay on image */}
         <View style={[styles.header, { paddingTop: insets.top - 5 }]}>
-          <TouchableOpacity 
+        <TouchableOpacity 
             style={styles.backButton} 
-            onPress={handleClose}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          onPress={handleClose}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
 
-          <TouchableOpacity 
+        <TouchableOpacity 
             style={styles.deleteButton} 
-            onPress={handleDelete}
-            accessibilityRole="button"
-            accessibilityLabel="Delete scan results"
-          >
-            <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
+          onPress={handleDelete}
+          accessibilityRole="button"
+          accessibilityLabel="Delete scan results"
+        >
+          <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
         </View>
       </View>
       
@@ -496,7 +496,7 @@ export default function ScanResultsModal() {
             
             {/* Done button */}
             {!isAnalyzing && scanResult && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
                   styles.doneButton, 
                   isSaving && styles.doneButtonDisabled

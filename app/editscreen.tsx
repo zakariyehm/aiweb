@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function EditFieldModal() {
+export default function EditScreen() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
   const styles = createStyles(colors);
@@ -404,3 +404,4 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   },
   saveBtnText: { color: colors.buttonText, fontWeight: '700', fontSize: 16 },
 });
+

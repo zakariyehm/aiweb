@@ -270,7 +270,20 @@ export default function HomeScreen() {
             </View>
           ) : (
             (selectedTab === 'today' ? todayData.recentlyEaten : yesterdayData.recentlyEaten).map((m) => (
-              <View key={m._id} style={styles.mealCard}>
+              <TouchableOpacity 
+                key={m._id} 
+                style={styles.mealCard}
+                onPress={() => {
+                  router.push({
+                    pathname: '/viewMeals',
+                    params: { 
+                      date: selectedTab === 'today' ? 'today' : 'yesterday',
+                      mealId: m._id 
+                    }
+                  });
+                }}
+                activeOpacity={0.7}
+              >
                 {m.imageUri ? (
                   <View style={styles.mealImageWrap}>
                     <Image source={{ uri: m.imageUri }} style={styles.mealImage} />
@@ -294,7 +307,7 @@ export default function HomeScreen() {
                     {new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
