@@ -178,7 +178,7 @@ export default function ViewMealsModal() {
           zIndex: 999,
         }}
       />
-
+      
       {/* Bottom Section - Sheet */}
       <Animated.View 
         style={[
@@ -197,16 +197,16 @@ export default function ViewMealsModal() {
         {/* Drag handle indicator */}
         <View style={styles.dragHandle} {...panResponder.panHandlers}>
           <View style={styles.dragHandleBar} />
-        </View>
-        
-        <ScrollView 
+      </View>
+
+      <ScrollView 
           ref={scrollViewRef}
           style={styles.contentContainer} 
           contentContainerStyle={{ paddingBottom: tabBarHeight + 24 }}
-          showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
           bounces
           scrollEnabled={true}
-        >
+      >
           {/* Title Section */}
           <View style={styles.titleSection}>
             <Text style={styles.foodTitle}>
@@ -244,49 +244,49 @@ export default function ViewMealsModal() {
           {!mealId && meals.length > 0 && (
             <View style={styles.mealsListSection}>
               <Text style={styles.sectionTitle}>All Meals</Text>
-              {meals.map((meal) => (
-                <View key={meal._id} style={styles.mealCard}>
-                  {meal.imageUri ? (
-                    <Image source={{ uri: meal.imageUri }} style={styles.mealImage} />
-                  ) : (
-                    <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
+            {meals.map((meal) => (
+              <View key={meal._id} style={styles.mealCard}>
+                {meal.imageUri ? (
+                  <Image source={{ uri: meal.imageUri }} style={styles.mealImage} />
+                ) : (
+                  <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
                       <FontAwesome name="cutlery" size={20} color={colors.textTertiary} />
+                  </View>
+                )}
+                <View style={styles.mealContent}>
+                  <Text style={styles.mealTitle} numberOfLines={2}>{meal.title || 'Meal'}</Text>
+                  <View style={styles.mealInfo}>
+                    <View style={styles.mealInfoItem}>
+                      <Ionicons name="flame" size={16} color={colors.calories} />
+                      <Text style={styles.mealInfoText}>{Math.round(meal.calories)} kcal</Text>
                     </View>
-                  )}
-                  <View style={styles.mealContent}>
-                    <Text style={styles.mealTitle} numberOfLines={2}>{meal.title || 'Meal'}</Text>
-                    <View style={styles.mealInfo}>
-                      <View style={styles.mealInfoItem}>
-                        <Ionicons name="flame" size={16} color={colors.calories} />
-                        <Text style={styles.mealInfoText}>{Math.round(meal.calories)} kcal</Text>
-                      </View>
-                      <View style={styles.mealInfoItem}>
-                        <Ionicons name="water" size={16} color={colors.protein} />
-                        <Text style={styles.mealInfoText}>{formatNutritionValue(meal.proteinG)}</Text>
-                      </View>
-                      <View style={styles.mealInfoItem}>
-                        <Ionicons name="leaf" size={16} color={colors.carbs} />
-                        <Text style={styles.mealInfoText}>{formatNutritionValue(meal.carbsG)}</Text>
-                      </View>
-                      <View style={styles.mealInfoItem}>
-                        <Ionicons name="water" size={16} color={colors.fat} />
-                        <Text style={styles.mealInfoText}>{formatNutritionValue(meal.fatG)}</Text>
-                      </View>
+                    <View style={styles.mealInfoItem}>
+                      <Ionicons name="water" size={16} color={colors.protein} />
+                      <Text style={styles.mealInfoText}>{formatNutritionValue(meal.proteinG)}</Text>
                     </View>
-                    <View style={styles.mealTime}>
-                      <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-                      <Text style={styles.mealTimeText}>
-                        {new Date(meal.createdAt || Date.now()).toLocaleTimeString([], { 
-                          hour: 'numeric', 
-                          minute: '2-digit' 
-                        })}
-                      </Text>
+                    <View style={styles.mealInfoItem}>
+                      <Ionicons name="leaf" size={16} color={colors.carbs} />
+                      <Text style={styles.mealInfoText}>{formatNutritionValue(meal.carbsG)}</Text>
+                    </View>
+                    <View style={styles.mealInfoItem}>
+                      <Ionicons name="water" size={16} color={colors.fat} />
+                      <Text style={styles.mealInfoText}>{formatNutritionValue(meal.fatG)}</Text>
                     </View>
                   </View>
+                  <View style={styles.mealTime}>
+                    <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+                    <Text style={styles.mealTimeText}>
+                      {new Date(meal.createdAt || Date.now()).toLocaleTimeString([], { 
+                        hour: 'numeric', 
+                        minute: '2-digit' 
+                      })}
+                    </Text>
+                  </View>
                 </View>
-              ))}
-            </View>
-          )}
+              </View>
+            ))}
+          </View>
+        )}
 
           {/* Empty State */}
           {meals.length === 0 && (
@@ -300,7 +300,7 @@ export default function ViewMealsModal() {
               </Text>
             </View>
           )}
-        </ScrollView>
+      </ScrollView>
       </Animated.View>
     </View>
   );

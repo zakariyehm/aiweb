@@ -377,6 +377,193 @@ export const updateDesiredWeight = mutation({
 });
 
 /**
+ * Send email verification code
+ * Generates a 6-digit code and stores it for verification
+ * In production, this would send an email via an email service
+ */
+export const sendEmailVerificationCode = mutation({
+  args: {
+    userId: v.id("users"),
+    newEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    
+    if (!user) {
+      throw new Error("Account not found. Please try signing in again.");
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(args.newEmail)) {
+      throw new Error("Please enter a valid email address (e.g., name@example.com)");
+    }
+    
+    // Check if email is already in use by another user
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", args.newEmail))
+      .first();
+    
+    if (existingUser && existingUser._id !== args.userId) {
+      throw new Error("This email is already registered. Please use a different email address.");
+    }
+    
+    // Check if email is the same as current email
+    if (user.email === args.newEmail || user.profile?.email === args.newEmail) {
+      throw new Error("This is already your current email address.");
+    }
+    
+    // Delete any existing verification codes for this user
+    const existingCodes = await ctx.db
+      .query("emailVerifications")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    
+    for (const code of existingCodes) {
+      await ctx.db.delete(code._id);
+    }
+    
+    // Generate 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Code expires in 15 minutes
+    const expiresAt = Date.now() + 15 * 60 * 1000;
+    
+    // Store verification code
+    await ctx.db.insert("emailVerifications", {
+      userId: args.userId,
+      email: args.newEmail,
+      code: verificationCode,
+      expiresAt,
+      createdAt: Date.now(),
+    });
+    
+    // In production, send email here using an email service (Resend, SendGrid, etc.)
+    // For now, we'll return the code for development/testing
+    // TODO: Remove code from return in production
+    console.log(`[Email Verification] Code for ${args.newEmail}: ${verificationCode}`);
+    
+    return { 
+      success: true,
+      // Remove this in production - only for development
+      code: verificationCode,
+    };
+  },
+});
+
+/**
+ * Verify email code and update user email
+ * Returns { success: true, newEmail: string } on success
+ * Returns { success: false, error: string } on validation failure
+ * Throws only for unexpected errors (user not found, etc.)
+ */
+export const verifyEmailCode = mutation({
+  args: {
+    userId: v.id("users"),
+    code: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    
+    if (!user) {
+      throw new Error("Account not found. Please try signing in again.");
+    }
+    
+    // Find verification code for this user
+    const verification = await ctx.db
+      .query("emailVerifications")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .first();
+    
+    if (!verification) {
+      // Return error instead of throwing to avoid "Uncaught Error" in logs
+      return {
+        success: false,
+        error: "No verification code found. Please request a new verification code.",
+      };
+    }
+    
+    // Check if code is expired
+    if (Date.now() > verification.expiresAt) {
+      // Delete expired code
+      await ctx.db.delete(verification._id);
+      // Return error instead of throwing
+      return {
+        success: false,
+        error: "This verification code has expired. Please request a new code.",
+      };
+    }
+    
+    // Verify code matches (normalize and compare as strings)
+    // Remove all non-digit characters and ensure 6 digits
+    const enteredCode = String(args.code || '').replace(/\D/g, '').trim();
+    const storedCode = String(verification.code || '').replace(/\D/g, '').trim();
+    
+    // Validate code length
+    if (!enteredCode || enteredCode.length !== 6) {
+      // Return error instead of throwing
+      return {
+        success: false,
+        error: "The verification code must be 6 digits. Please check and try again.",
+      };
+    }
+    
+    if (!storedCode || storedCode.length !== 6) {
+      // This shouldn't happen, but handle it gracefully
+      await ctx.db.delete(verification._id);
+      // Return error instead of throwing
+      return {
+        success: false,
+        error: "Invalid verification code. Please request a new code.",
+      };
+    }
+    
+    // Compare codes (case-insensitive, already normalized to digits only)
+    if (storedCode !== enteredCode) {
+      // Return error instead of throwing to avoid "Uncaught Error" in logs
+      return {
+        success: false,
+        error: "The verification code you entered is incorrect. Please check and try again.",
+      };
+    }
+    
+    // Check if email is still available
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", verification.email))
+      .first();
+    
+    if (existingUser && existingUser._id !== args.userId) {
+      await ctx.db.delete(verification._id);
+      // Return error instead of throwing
+      return {
+        success: false,
+        error: "This email address is already registered to another account. Please use a different email.",
+      };
+    }
+    
+    // Update user email in both root and profile
+    await ctx.db.patch(args.userId, {
+      email: verification.email,
+      profile: {
+        ...user.profile,
+        email: verification.email,
+      },
+      updatedAt: Date.now(),
+    });
+    
+    // Delete verification code after successful verification
+    await ctx.db.delete(verification._id);
+    
+    return { 
+      success: true,
+      newEmail: verification.email,
+    };
+  },
+});
+
+/**
  * Delete user account and all associated data
  * Deletes: user record, all meals, all daily entries, username mapping
  */
@@ -424,7 +611,17 @@ export const deleteAccount = mutation({
       }
     }
     
-    // 4. Delete the user record itself
+    // 4. Delete email verification codes
+    const verifications = await ctx.db
+      .query("emailVerifications")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    
+    for (const verification of verifications) {
+      await ctx.db.delete(verification._id);
+    }
+    
+    // 5. Delete the user record itself
     await ctx.db.delete(args.userId);
     
     return { success: true };

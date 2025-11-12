@@ -155,5 +155,16 @@ export default defineSchema({
   })
     .index("by_username", ["username"])
     .index("by_user", ["userId"]),
+  
+  // Email verification codes
+  emailVerifications: defineTable({
+    userId: v.id("users"),
+    email: v.string(), // New email to verify
+    code: v.string(), // 6-digit verification code
+    expiresAt: v.number(), // Timestamp when code expires (15 minutes)
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_email", ["email"]),
 });
 

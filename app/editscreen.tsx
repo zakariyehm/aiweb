@@ -47,6 +47,7 @@ export default function EditScreen() {
   const updateFieldMutation = useMutation(api.users.updateField);
   const updateUsernameMutation = useMutation(api.users.updateUsername);
   const checkUsernameAvailability = useMutation(api.usernames.checkAvailability);
+  const sendEmailVerificationCode = useMutation(api.users.sendEmailVerificationCode);
   const userData = useQuery(api.users.get, userId ? { userId } : "skip");
 
   useEffect(() => {
@@ -185,6 +186,47 @@ export default function EditScreen() {
         return;
       }
 
+      // Handle email update - requires verification
+      if (field === 'email') {
+        const newEmail = String(value || '').trim().toLowerCase();
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(newEmail)) {
+          throw new Error('Please enter a valid email address (e.g., name@example.com)');
+        }
+        
+        // Check if email is the same as current email
+        const currentEmail = userData?.email || userData?.profile?.email || '';
+        if (currentEmail.toLowerCase() === newEmail) {
+          Alert.alert(
+            'No Change',
+            'This is already your current email address.',
+            [{ text: 'OK', onPress: () => router.replace('/(tabs)/settings') }]
+          );
+          return;
+        }
+        
+        try {
+          // Send verification code to new email
+          const result = await sendEmailVerificationCode({ userId, newEmail });
+          
+          // Navigate to verification screen
+          router.push({
+            pathname: '/verifyEmail',
+            params: {
+              newEmail: newEmail,
+              // In development, show code in alert for testing
+              ...(result.code && { devCode: result.code }),
+            },
+          });
+        } catch (error: any) {
+          // Re-throw with better error message
+          throw new Error(error.message || 'Unable to send verification code. Please try again.');
+        }
+        return;
+      }
+
       // Handle phone update
       if (field === 'phone') {
         const code = phoneCountryCode.startsWith('+') ? phoneCountryCode : `+${phoneCountryCode}`;
@@ -202,7 +244,12 @@ export default function EditScreen() {
       await updateFieldMutation({ userId, field, value: coerced });
       router.replace('/(tabs)/settings');
     } catch (e: any) {
-      Alert.alert('Save failed', e?.message || 'Please try again');
+      const errorMessage = e?.message || 'Unable to save changes. Please try again.';
+      Alert.alert(
+        'Unable to Save',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
     } finally {
       setSaving(false);
     }

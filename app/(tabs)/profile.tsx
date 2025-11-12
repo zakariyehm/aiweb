@@ -12,13 +12,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface UserProfile {
   firstName?: string;
-  age?: string;
-  height?: string;
-  weight?: string;
+  name?: string;
+  age?: string | number;
+  height?: string | number;
+  weight?: string | number;
   gender?: string;
   workouts?: string;
   goal?: string;
-  desiredWeight?: string;
+  desiredWeight?: string | number;
   specificGoal?: string;
   email?: string;
 }
@@ -54,11 +55,17 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (userData) {
-      setUserProfile(userData.profile || {});
+      // Merge profile data with root email if available
+      const profileData: UserProfile = {
+        ...(userData.profile || {}),
+        // Include root-level email if profile email is not set
+        email: userData.profile?.email || userData.email || userSession?.email,
+      };
+      setUserProfile(profileData);
       setNutritionPlan(userData.plan || null);
       setLoading(false);
     }
-  }, [userData]);
+  }, [userData, userSession?.email]);
 
 
 
@@ -158,10 +165,10 @@ export default function ProfileScreen() {
             </View>
           </View>
           <Text style={styles.userName}>
-            {userProfile?.firstName || 'User'}
+            {userProfile?.name || userProfile?.firstName || 'User'}
           </Text>
           <Text style={styles.userEmail}>
-            {userProfile?.email || 'user@example.com'}
+            {userProfile?.email || userData?.email || userSession?.email || 'user@example.com'}
           </Text>
         </View>
 
