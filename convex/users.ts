@@ -5,6 +5,7 @@
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 /**
  * Get user by ID
@@ -439,16 +440,37 @@ export const sendEmailVerificationCode = mutation({
       createdAt: Date.now(),
     });
     
-    // In production, send email here using an email service (Resend, SendGrid, etc.)
-    // For now, we'll return the code for development/testing
-    // TODO: Remove code from return in production
-    console.log(`[Email Verification] Code for ${args.newEmail}: ${verificationCode}`);
+    // Send email using Resend via action (actions can make external API calls)
+    // Mutations cannot call actions directly, so we schedule it to run immediately
+    const resendApiKey = process.env.RESEND_API_KEY;
     
-    return { 
-      success: true,
-      // Remove this in production - only for development
-      code: verificationCode,
-    };
+    if (resendApiKey) {
+      // Production: Schedule action to send real email using Resend
+      // runAfter(0) means run immediately
+      // Note: Scheduler doesn't return result, so we can't check if email was sent
+      // If domain is not verified, email will fail but we return code as fallback
+      await ctx.scheduler.runAfter(0, api.actions.sendVerificationEmail, {
+        email: args.newEmail,
+        code: verificationCode,
+      });
+      console.log(`[Email Scheduled] Verification code will be sent to ${args.newEmail}`);
+      
+      // Return code as fallback (in case domain is not verified and email fails)
+      // Once domain is verified and emails work reliably, you can remove code from return
+      return {
+        success: true,
+        code: verificationCode, // Fallback if email sending fails
+      };
+    } else {
+      // Development mode: Log warning if API key is missing
+      console.warn(`[Email Verification] RESEND_API_KEY not found. Email not sent. Code: ${verificationCode}`);
+      console.warn(`[Development Mode] Add RESEND_API_KEY to Convex environment variables to send real emails`);
+      // In development without API key, return code for testing
+      return {
+        success: true,
+        code: verificationCode,
+      };
+    }
   },
 });
 

@@ -212,12 +212,12 @@ export default function EditScreen() {
           const result = await sendEmailVerificationCode({ userId, newEmail });
           
           // Navigate to verification screen
+          // Pass code if returned (fallback when domain is not verified)
           router.push({
             pathname: '/verifyEmail',
             params: {
               newEmail: newEmail,
-              // In development, show code in alert for testing
-              ...(result.code && { devCode: result.code }),
+              ...(result.code && { devCode: result.code }), // Show code if email sending might have failed
             },
           });
         } catch (error: any) {

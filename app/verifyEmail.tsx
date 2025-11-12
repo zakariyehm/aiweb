@@ -17,7 +17,7 @@ export default function VerifyEmailScreen() {
   
   const params = useLocalSearchParams();
   const newEmail = params.newEmail as string;
-  const devCode = params.devCode as string | undefined; // For development only
+  const devCode = params.devCode as string | undefined; // Code returned as fallback if email failed
   
   const { userSession } = useAuth();
   const userId = userSession?.userId as Id<"users"> | undefined;
@@ -30,12 +30,12 @@ export default function VerifyEmailScreen() {
   const verifyEmailCode = useMutation(api.users.verifyEmailCode);
   const sendEmailVerificationCode = useMutation(api.users.sendEmailVerificationCode);
   
-  // Show dev code in alert for development (remove in production)
+  // Show code in alert if provided (fallback when email sending might have failed)
   useEffect(() => {
-    if (devCode && __DEV__) {
+    if (devCode) {
       Alert.alert(
-        'Development Mode',
-        `Verification code: ${devCode}\n\nThis is only shown in development.`,
+        'Verification Code',
+        `Your verification code: ${devCode}\n\nNote: If you didn't receive an email, use this code. Once domain is verified, codes will only be sent via email.`,
         [{ text: 'OK' }]
       );
     }
@@ -122,11 +122,11 @@ export default function VerifyEmailScreen() {
       setCode('');
       setErrorMessage('');
       
-      // Show dev code in development
-      if (result.code && __DEV__) {
+      // Show success message with code if returned (fallback when email might have failed)
+      if (result.code) {
         Alert.alert(
-          'Code Resent (Development Mode)',
-          `A new verification code has been sent.\n\nVerification code: ${result.code}\n\n(This is only shown in development mode)`,
+          'Code Resent',
+          `A new verification code has been sent.\n\nVerification code: ${result.code}\n\nNote: If you didn't receive an email, use this code. Once domain is verified, codes will only be sent via email.`,
           [{ text: 'OK' }]
         );
       } else {

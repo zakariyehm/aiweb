@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as actions from "../actions.js";
 import type * as auth from "../auth.js";
 import type * as meals from "../meals.js";
 import type * as referrals from "../referrals.js";
@@ -30,6 +31,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  actions: typeof actions;
   auth: typeof auth;
   meals: typeof meals;
   referrals: typeof referrals;
