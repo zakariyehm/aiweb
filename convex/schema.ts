@@ -83,6 +83,17 @@ export default defineSchema({
     }))),
     lastWeighedAt: v.optional(v.number()),
     
+    // Subscription information
+    subscription: v.optional(v.object({
+      planType: v.union(v.literal('monthly'), v.literal('yearly')),
+      isActive: v.boolean(),
+      startDate: v.number(), // timestamp when subscription started
+      endDate: v.optional(v.number()), // timestamp when subscription ends (for monthly)
+      phoneNumber: v.optional(v.string()),
+      trialEndDate: v.optional(v.number()), // timestamp when trial ends (3 days from start)
+      billingDate: v.optional(v.number()), // timestamp when billing starts (after trial ends)
+    })),
+    
     // Metadata
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),

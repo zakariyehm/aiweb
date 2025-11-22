@@ -1,7 +1,12 @@
-import { FontAwesome } from '@expo/vector-icons';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
+import { useAuth } from '@/hooks/useAuth';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { useMutation, useQuery } from 'convex/react';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Alert, BackHandler, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Qaybta shaashadda hore (Initial View)
@@ -102,23 +107,138 @@ const TrialOfferView = ({ selectedPlan, onSelectPlan, onStart }: { selectedPlan:
   );
 };
 
-// [CUSUB] Shaashadda yar ee lacag bixinta (Payment Dialog Component)
-const PaymentDialog = ({ visible, onClose, selectedPlan }: { visible: boolean; onClose: () => void; selectedPlan: PlanType; }) => {
+export default function BillingScreen() {
+  const [showTrialDetails, setShowTrialDetails] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>('yearly');
+  const [showPaymentScreen, setShowPaymentScreen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('252');
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const insets = useSafeAreaInsets();
+  const { userSession } = useAuth();
+  const userId = userSession?.userId as Id<"users"> | null;
+  const updateSubscriptionMutation = useMutation(api.users.updateSubscription);
+  
+  // Check if user already has active subscription
+  const subscriptionStatus = useQuery(
+    api.users.hasActiveSubscription,
+    userId ? { userId } : "skip"
+  );
 
-  const handleSubscription = () => {
-    // Hubi in lambarku sax yahay (ugu yaraan 10 xarafood oo leh 252)
+  const navigateToHome = useCallback(() => {
+    console.log('[Billing] Navigating to home');
+    router.replace('/(tabs)');
+  }, []);
+  
+  // Redirect users who already have active subscription
+  useEffect(() => {
+    console.log('[Billing] Subscription status check:', {
+      userId,
+      subscriptionStatus: subscriptionStatus !== undefined ? {
+        hasSubscription: subscriptionStatus.hasSubscription,
+        isActive: subscriptionStatus.isActive,
+        planType: subscriptionStatus.planType,
+        startDate: subscriptionStatus.startDate ? new Date(subscriptionStatus.startDate).toISOString() : null,
+        endDate: subscriptionStatus.endDate ? new Date(subscriptionStatus.endDate).toISOString() : null,
+        now: new Date().toISOString(),
+      } : 'loading...',
+    });
+    
+    if (userId && subscriptionStatus !== undefined) {
+      if (subscriptionStatus.hasSubscription && subscriptionStatus.isActive) {
+        console.log('[Billing] ✅ User already has active subscription - redirecting to home');
+        console.log('[Billing] Subscription details:', {
+          planType: subscriptionStatus.planType,
+          startDate: subscriptionStatus.startDate ? new Date(subscriptionStatus.startDate).toISOString() : null,
+          endDate: subscriptionStatus.endDate ? new Date(subscriptionStatus.endDate).toISOString() : null,
+          isInRange: subscriptionStatus.startDate && subscriptionStatus.endDate 
+            ? Date.now() >= subscriptionStatus.startDate && Date.now() <= subscriptionStatus.endDate
+            : 'N/A',
+        });
+        navigateToHome();
+      } else {
+        console.log('[Billing] ❌ User does not have active subscription - showing billing screen');
+      }
+    }
+  }, [userId, subscriptionStatus, navigateToHome]);
+
+  const handleClose = () => {
+    navigateToHome();
+  };
+
+  const handleBack = () => {
+    if (showPaymentScreen) {
+      setShowPaymentScreen(false);
+    } else if (showTrialDetails) {
+      setShowTrialDetails(false);
+    } else {
+      navigateToHome();
+    }
+  };
+
+  // Handle Android back button
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (showPaymentScreen) {
+          setShowPaymentScreen(false);
+          return true; // Prevent default behavior
+        } else if (showTrialDetails) {
+          setShowTrialDetails(false);
+          return true; // Prevent default behavior
+        } else {
+          navigateToHome();
+          return true; // Prevent default behavior
+        }
+      });
+
+      return () => backHandler.remove();
+    }
+  }, [showPaymentScreen, showTrialDetails, navigateToHome]);
+
+  const handleSubscription = async () => {
+    console.log('[Billing] handleSubscription called');
+    
     if (phoneNumber.length < 10) {
+      console.log('[Billing] ❌ Invalid phone number');
       Alert.alert('Error', 'Please enter a valid Somali phone number (e.g., 25261xxxxxxx).');
       return;
     }
-    console.log(`Subscribing to ${selectedPlan} plan with phone number: ${phoneNumber}`);
-    // Halkan ku dar logic-ka dhabta ah ee lacag bixinta
-    Alert.alert('Success', `You have subscribed to the ${selectedPlan} plan!`);
-    onClose(); // Xir shaashadda kadib guusha
+    
+    if (!userId) {
+      console.log('[Billing] ❌ No userId');
+      Alert.alert('Error', 'User not found. Please try again.');
+      return;
+    }
+    
+    console.log('[Billing] Subscribing user:', {
+      userId,
+      planType: selectedPlan,
+      phoneNumber,
+    });
+    
+    setIsSubscribing(true);
+    
+    try {
+      const result = await updateSubscriptionMutation({
+        userId,
+        planType: selectedPlan,
+        phoneNumber: phoneNumber,
+      });
+      
+      console.log('[Billing] ✅ Subscription successful:', result);
+      console.log('[Billing] Subscription should now be active from', new Date().toISOString());
+      
+      Alert.alert('Success', `You have subscribed to the ${selectedPlan} plan!`);
+      // Navigate to home after successful subscription
+      navigateToHome();
+    } catch (error: any) {
+      console.error('[Billing] ❌ Subscription error:', error);
+      Alert.alert('Error', error?.message || 'Failed to subscribe. Please try again.');
+    } finally {
+      setIsSubscribing(false);
+    }
   };
   
-  // Hubi in user-ku uusan masixi karin '252'
   const handlePhoneChange = (text: string) => {
     if (text.startsWith('252')) {
       setPhoneNumber(text);
@@ -132,88 +252,88 @@ const PaymentDialog = ({ visible, onClose, selectedPlan }: { visible: boolean; o
 
   const currentPlan = planDetails[selectedPlan];
 
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.dialogOverlay}>
-        <View style={styles.dialogContainer}>
-          <Text style={styles.dialogTitle}>{currentPlan.name}</Text>
-          <Text style={styles.dialogPrice}>Starting today {currentPlan.price}</Text>
-          
-          <Text style={styles.inputLabel}>Enter your phone number</Text>
-          <TextInput
-            style={styles.phoneInput}
-            placeholder="252xxxxxxxxx"
-            value={phoneNumber}
-            onChangeText={handlePhoneChange}
-            keyboardType="phone-pad"
-            maxLength={12}
-          />
-          
-          <TouchableOpacity style={styles.continueButton} onPress={handleSubscription}>
-            <Text style={styles.continueButtonText}>Continue</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={onClose}>
-             <Text style={styles.cancelText}>Cancel</Text>
+  // Payment Screen View
+  if (showPaymentScreen) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style={Platform.OS === 'ios' ? 'dark' : 'auto'} />
+        
+        {/* Header with back button */}
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
         </View>
+
+        {/* Content */}
+        <ScrollView 
+          style={styles.content}
+          contentContainerStyle={styles.paymentContentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.paymentTitle}>{currentPlan.name}</Text>
+          <Text style={styles.paymentPrice}>Starting today {currentPlan.price}</Text>
+          
+          <View style={styles.paymentForm}>
+            <Text style={styles.inputLabel}>Enter your phone number</Text>
+            <TextInput
+              style={styles.phoneInput}
+              placeholder="252xxxxxxxxx"
+              placeholderTextColor="#999"
+              value={phoneNumber}
+              onChangeText={handlePhoneChange}
+              keyboardType="phone-pad"
+              maxLength={12}
+              autoFocus={false}
+            />
+            
+            <TouchableOpacity 
+              style={[styles.continueButton, isSubscribing && { opacity: 0.7 }]} 
+              onPress={handleSubscription}
+              disabled={isSubscribing}
+            >
+              <Text style={styles.continueButtonText}>
+                {isSubscribing ? 'Subscribing...' : 'Continue'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleBack} style={styles.cancelButton}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
-    </Modal>
-  );
-};
+    );
+  }
 
-export default function FeeCheck() {
-  const [showTrialDetails, setShowTrialDetails] = useState(false);
-  // [CUSUB] State lagu maareeyo doorashada iyo dialog-ga
-  const [selectedPlan, setSelectedPlan] = useState<PlanType>('yearly'); // Default waa yearly
-  const [isDialogVisible, setDialogVisible] = useState(false);
-  const insets = useSafeAreaInsets();
-
-  const handleBack = () => {
-    if (showTrialDetails) {
-      setShowTrialDetails(false);
-    } else {
-      router.back();
-    }
-  };
-
-  const handleClose = () => {
-    router.back();
-  };
-
+  // Main Billing Screen View
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}> 
+    <View style={styles.container}>
+      <StatusBar style={Platform.OS === 'ios' ? 'dark' : 'auto'} />
+      
       {/* Header with close button */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
           <FontAwesome name="times" size={20} color="#000" />
         </TouchableOpacity>
       </View>
       
-      {/* Qaybta hoose ee isbeddelaysa */}
-      <View style={styles.content}>
+      {/* Content */}
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {showTrialDetails ? (
           <TrialOfferView 
             selectedPlan={selectedPlan}
             onSelectPlan={setSelectedPlan}
-            onStart={() => setDialogVisible(true)} // Fur dialog-ga
+            onStart={() => setShowPaymentScreen(true)}
           />
         ) : (
           <InitialView onContinue={() => setShowTrialDetails(true)} />
         )}
-      </View>
-
-      {/* [CUSUB] Render-ka dialog-ga lacag bixinta */}
-      <PaymentDialog 
-        visible={isDialogVisible}
-        onClose={() => setDialogVisible(false)}
-        selectedPlan={selectedPlan}
-      />
+      </ScrollView>
     </View>
   );
 }
@@ -229,7 +349,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingBottom: 8,
+    zIndex: 10,
   },
   closeButton: {
     width: 40,
@@ -239,13 +360,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     paddingHorizontal: 25,
     paddingBottom: 20,
+    paddingTop: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 20,
+    minHeight: '100%',
   },
   ctaButton: {
     backgroundColor: '#000',
@@ -380,60 +512,65 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // [CUSUB] Styles-ka Dialog-ga Lacag Bixinta
-  dialogOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+  // [CUSUB] Styles-ka Payment Screen-ga
+  paymentContentContainer: {
+    padding: 24,
+    paddingTop: 32,
+    paddingBottom: 40,
   },
-  dialogContainer: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    alignItems: 'center',
-  },
-  dialogTitle: {
-    fontSize: 20,
+  paymentTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
+    color: '#000',
     marginBottom: 8,
+    textAlign: 'center',
   },
-  dialogPrice: {
-    fontSize: 16,
+  paymentPrice: {
+    fontSize: 18,
     color: '#666',
-    marginBottom: 20,
+    marginBottom: 40,
+    textAlign: 'center',
+  },
+  paymentForm: {
+    width: '100%',
   },
   inputLabel: {
-    alignSelf: 'flex-start',
     fontSize: 16,
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 12,
     fontWeight: '500',
   },
   phoneInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    padding: 12,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    padding: 16,
     width: '100%',
-    fontSize: 16,
-    marginBottom: 20,
+    fontSize: 18,
+    marginBottom: 24,
+    backgroundColor: '#f9f9f9',
+    color: '#000',
   },
   continueButton: {
-    backgroundColor: '#007AFF', // Midabka buluugga ah
-    paddingVertical: 16,
+    backgroundColor: '#000',
+    paddingVertical: 18,
     borderRadius: 30,
     width: '100%',
     alignItems: 'center',
+    marginBottom: 16,
   },
   continueButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
   },
+  cancelButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
   cancelText: {
-    color: '#007AFF',
-    marginTop: 15,
+    color: '#666',
     fontSize: 16,
+    fontWeight: '500',
   }
 });

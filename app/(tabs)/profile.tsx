@@ -819,4 +819,3 @@ const createStyles = (colors: typeof Colors.light) => StyleSheet.create({
   },
 });
 
-

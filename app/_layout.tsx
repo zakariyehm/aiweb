@@ -69,6 +69,7 @@ export default function RootLayout() {
                 <Stack.Screen name="viewMeals" options={{ presentation: 'modal', headerShown: false }} />
                 <Stack.Screen name="editscreen" options={{ presentation: 'modal', title: 'Edit' }} />
                 <Stack.Screen name="verifyEmail" options={{ presentation: 'modal', headerShown: false }} />
+                <Stack.Screen name="billing" options={{ presentation: 'modal', headerShown: false }} />
             
             <Stack.Screen name="+not-found" />
           </Stack>

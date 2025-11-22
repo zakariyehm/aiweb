@@ -586,6 +586,123 @@ export const verifyEmailCode = mutation({
 });
 
 /**
+ * Check if user has active subscription
+ * Returns subscription status and whether user can use premium features
+ */
+export const hasActiveSubscription = query({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    
+    if (!user) {
+      return { hasSubscription: false, isActive: false };
+    }
+    
+    const subscription = user.subscription;
+    
+    if (!subscription || !subscription.isActive) {
+      return { hasSubscription: false, isActive: false };
+    }
+    
+    // Check if subscription is still valid based on date range
+    const now = Date.now();
+    
+    // Check if subscription has started (now >= startDate)
+    if (now < subscription.startDate) {
+      return { hasSubscription: true, isActive: false };
+    }
+    
+    // Check if subscription has ended (for plans with endDate)
+    if (subscription.endDate && now > subscription.endDate) {
+      return { hasSubscription: true, isActive: false };
+    }
+    
+    // Check if we're in trial period
+    const isInTrial = subscription.trialEndDate && now < subscription.trialEndDate;
+    
+    // Subscription is active if:
+    // 1. Current time is >= startDate
+    // 2. Current time is <= endDate (if endDate exists)
+    // 3. For yearly plans without endDate, it's active as long as isActive is true
+    const isActive = now >= subscription.startDate && 
+                     (!subscription.endDate || now <= subscription.endDate);
+    
+    if (isActive) {
+      return { 
+        hasSubscription: true, 
+        isActive: true,
+        isTrial: isInTrial || false,
+        trialEndDate: subscription.trialEndDate,
+        planType: subscription.planType,
+        startDate: subscription.startDate,
+        endDate: subscription.endDate,
+      };
+    }
+    
+    // Subscription exists but is not active (expired or not started yet)
+    return { 
+      hasSubscription: true, 
+      isActive: false,
+      planType: subscription.planType,
+    };
+  },
+});
+
+/**
+ * Update user subscription
+ * Called when user subscribes via feeCheck component
+ */
+export const updateSubscription = mutation({
+  args: {
+    userId: v.id("users"),
+    planType: v.union(v.literal('monthly'), v.literal('yearly')),
+    phoneNumber: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    const now = Date.now();
+    const TRIAL_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
+    const trialEndDate = now + TRIAL_DURATION_MS;
+    
+    // Calculate billing date (when actual billing starts after trial)
+    const billingDate = trialEndDate;
+    
+    // Calculate end date based on plan type
+    // Monthly: 30 days from billing date (after trial)
+    // Yearly: 365 days from billing date (after trial)
+    let endDate: number | undefined;
+    if (args.planType === 'monthly') {
+      endDate = billingDate + (30 * 24 * 60 * 60 * 1000);
+    } else {
+      // Yearly plan: 365 days from billing date
+      endDate = billingDate + (365 * 24 * 60 * 60 * 1000);
+    }
+    
+    await ctx.db.patch(args.userId, {
+      subscription: {
+        planType: args.planType,
+        isActive: true,
+        startDate: now, // Subscription starts immediately
+        endDate: endDate, // Subscription ends after plan duration
+        phoneNumber: args.phoneNumber,
+        trialEndDate: trialEndDate, // Trial ends in 3 days
+        billingDate: billingDate, // Billing starts after trial
+      },
+      updatedAt: Date.now(),
+    });
+    
+    return { success: true };
+  },
+});
+
+/**
  * Delete user account and all associated data
  * Deletes: user record, all meals, all daily entries, username mapping
  */
