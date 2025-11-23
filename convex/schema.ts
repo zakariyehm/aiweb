@@ -92,6 +92,7 @@ export default defineSchema({
       phoneNumber: v.optional(v.string()),
       trialEndDate: v.optional(v.number()), // timestamp when trial ends (3 days from start)
       billingDate: v.optional(v.number()), // timestamp when billing starts (after trial ends)
+      waafiTransactionId: v.optional(v.string()), // WaafiPay transaction ID from preauthorization
     })),
     
     // Metadata

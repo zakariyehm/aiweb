@@ -2,7 +2,7 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/useAuth';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { useMutation, useQuery } from 'convex/react';
+import { useAction, useMutation, useQuery } from 'convex/react';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -33,7 +33,7 @@ const InitialView = ({ onContinue }: { onContinue: () => void }) => {
 
       {/* Subscription information */}
       <Text style={styles.subscriptionInfo}>
-        Just $29.99 per year ($2.49/mo)
+        Just $0.01 per year (for testing)
       </Text>
     </>
   );
@@ -84,7 +84,7 @@ const TrialOfferView = ({ selectedPlan, onSelectPlan, onStart }: { selectedPlan:
           onPress={() => onSelectPlan('monthly')}
         >
           <Text style={[styles.optionTitle, selectedPlan === 'monthly' && styles.selectedText]}>Monthly</Text>
-          <Text style={[styles.optionPrice, selectedPlan === 'monthly' && styles.selectedText]}>$9.99 /mo</Text>
+          <Text style={[styles.optionPrice, selectedPlan === 'monthly' && styles.selectedText]}>$0.01 /mo</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.option, selectedPlan === 'yearly' && styles.selectedOption]}
@@ -102,7 +102,7 @@ const TrialOfferView = ({ selectedPlan, onSelectPlan, onStart }: { selectedPlan:
         <Text style={styles.ctaButtonText}>Start My 3-Day Free Trial</Text>
       </TouchableOpacity>
 
-      <Text style={styles.subscriptionInfo}>3 days free, then $29.99 per year ($2.49/mo)</Text>
+      <Text style={styles.subscriptionInfo}>3 days free, then $0.01 per year (for testing)</Text>
     </>
   );
 };
@@ -117,6 +117,9 @@ export default function BillingScreen() {
   const { userSession } = useAuth();
   const userId = userSession?.userId as Id<"users"> | null;
   const updateSubscriptionMutation = useMutation(api.users.updateSubscription);
+  const waafiPreAuthorizeAction = useAction(api.actions.waafiPreAuthorize);
+  const waafiCommitAction = useAction(api.actions.waafiPreAuthorizeCommit);
+  const waafiCancelAction = useAction(api.actions.waafiPreAuthorizeCancel);
   
   // Check if user already has active subscription
   const subscriptionStatus = useQuery(
@@ -210,19 +213,92 @@ export default function BillingScreen() {
       return;
     }
     
-    console.log('[Billing] Subscribing user:', {
+    // Calculate amount based on plan
+    const amount = selectedPlan === 'monthly' ? '0.01' : '0.01';
+    const currency = 'USD';
+    const referenceId = `sub_${userId}_${Date.now()}`;
+    
+    console.log('[Billing] Starting WaafiPay preauthorization:', {
       userId,
       planType: selectedPlan,
       phoneNumber,
+      amount,
+      referenceId,
     });
     
     setIsSubscribing(true);
+    let waafiTransactionId: string | null = null;
     
     try {
+      // Step 1: Preauthorize (hold funds)
+      console.log('[Billing] Step 1: Preauthorizing payment...');
+      const preAuthResult = await waafiPreAuthorizeAction({
+        phoneNumber: phoneNumber,
+        amount: amount,
+        currency: currency,
+        planType: selectedPlan,
+        referenceId: referenceId,
+      });
+      
+      if (!preAuthResult.success || !preAuthResult.transactionId) {
+        console.error('[Billing] ❌ Preauthorization failed:', preAuthResult);
+        const errorMessage = preAuthResult.error || 'Your payment could not be processed. Please check your phone number and try again.';
+        Alert.alert(
+          'Payment Failed',
+          errorMessage,
+          [{ text: 'OK', style: 'default' }]
+        );
+        setIsSubscribing(false);
+        return;
+      }
+      
+      waafiTransactionId = preAuthResult.transactionId;
+      console.log('[Billing] ✅ Preauthorization successful, transaction ID:', waafiTransactionId);
+      
+      // Step 2: Commit the transaction (charge the customer)
+      console.log('[Billing] Step 2: Committing transaction...');
+      if (!waafiTransactionId) {
+        throw new Error('Transaction ID is missing');
+      }
+      
+      const commitResult = await waafiCommitAction({
+        transactionId: waafiTransactionId,
+        description: `CalAI ${selectedPlan === 'monthly' ? 'Monthly' : 'Yearly'} Subscription`,
+      });
+      
+      if (!commitResult.success) {
+        console.error('[Billing] ❌ Commit failed:', commitResult);
+        // Try to cancel the preauthorization
+        try {
+          if (waafiTransactionId) {
+            await waafiCancelAction({
+              transactionId: waafiTransactionId,
+              description: 'Subscription commit failed',
+            });
+          }
+        } catch (cancelError) {
+          console.error('[Billing] Failed to cancel after commit error:', cancelError);
+        }
+        
+        const commitErrorMessage = commitResult.error || 'Failed to process your payment. Please try again.';
+        Alert.alert(
+          'Payment Failed',
+          commitErrorMessage,
+          [{ text: 'OK', style: 'default' }]
+        );
+        setIsSubscribing(false);
+        return;
+      }
+      
+      console.log('[Billing] ✅ Transaction committed successfully');
+      
+      // Step 3: Update subscription in database
+      console.log('[Billing] Step 3: Updating subscription...');
       const result = await updateSubscriptionMutation({
         userId,
         planType: selectedPlan,
         phoneNumber: phoneNumber,
+        waafiTransactionId: waafiTransactionId || undefined,
       });
       
       console.log('[Billing] ✅ Subscription successful:', result);
@@ -233,7 +309,44 @@ export default function BillingScreen() {
       navigateToHome();
     } catch (error: any) {
       console.error('[Billing] ❌ Subscription error:', error);
-      Alert.alert('Error', error?.message || 'Failed to subscribe. Please try again.');
+      
+      // If we have a transaction ID, try to cancel it
+      if (waafiTransactionId) {
+        try {
+          console.log('[Billing] Attempting to cancel transaction:', waafiTransactionId);
+          await waafiCancelAction({
+            transactionId: waafiTransactionId,
+            description: 'Subscription error - cancelling',
+          });
+          console.log('[Billing] ✅ Transaction cancelled');
+        } catch (cancelError) {
+          console.error('[Billing] Failed to cancel transaction:', cancelError);
+        }
+      }
+      
+      // Get user-friendly error message
+      let errorMessage = 'Failed to subscribe. Please try again.';
+      
+      if (error?.message) {
+        // Check if it's a WaafiPay error
+        if (error.message.includes('account balance') || error.message.includes('not sufficient')) {
+          errorMessage = 'Your account balance is not sufficient. Please add funds to your mobile wallet and try again.';
+        } else if (error.message.includes('phone number') || error.message.includes('Invalid')) {
+          errorMessage = 'Please check your phone number and try again. Make sure it starts with 252.';
+        } else if (error.message.includes('timeout') || error.message.includes('network')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        } else if (error.message.includes('cancelled') || error.message.includes('declined')) {
+          errorMessage = 'Payment was cancelled or declined. Please try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      Alert.alert(
+        'Payment Error',
+        errorMessage,
+        [{ text: 'OK', style: 'default' }]
+      );
     } finally {
       setIsSubscribing(false);
     }
@@ -246,8 +359,8 @@ export default function BillingScreen() {
   };
 
   const planDetails: Record<PlanType, { name: string; price: string }> = {
-    monthly: { name: 'Cal AI Monthly Plan', price: '$9.99/month' },
-    yearly: { name: 'Cal AI Yearly Plan', price: '$29.99/year' }
+    monthly: { name: 'Cal AI Monthly Plan', price: '$0.01/month (testing)' },
+    yearly: { name: 'Cal AI Yearly Plan', price: '$0.01/year (testing)' }
   };
 
   const currentPlan = planDetails[selectedPlan];

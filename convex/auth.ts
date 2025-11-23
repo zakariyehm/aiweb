@@ -42,29 +42,40 @@ export const signUp = mutation({
     })),
   },
   handler: async (ctx, args) => {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(args.email)) {
+      throw new Error("Please enter a valid email address");
+    }
+    
+    // Validate password length
+    if (!args.password || args.password.length < 6) {
+      throw new Error("Password must be at least 6 characters long");
+    }
+    
     // Check if email already exists
     const existing = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .withIndex("by_email", (q) => q.eq("email", args.email.toLowerCase().trim()))
       .first();
     
     if (existing) {
-      throw new Error("Email already in use");
+      throw new Error("This email is already registered. Please sign in instead or use a different email");
     }
     
     // Create user
     const userId = await ctx.db.insert("users", {
-      email: args.email,
+      email: args.email.toLowerCase().trim(),
       isGuest: false,
       profile: {
         ...args.profile,
-        email: args.email,
+        email: args.email.toLowerCase().trim(),
       },
       plan: args.plan,
       createdAt: Date.now(),
     });
     
-    return { userId, email: args.email };
+    return { userId, email: args.email.toLowerCase().trim() };
   },
 });
 
@@ -78,13 +89,24 @@ export const signIn = mutation({
     password: v.string(),
   },
   handler: async (ctx, args) => {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(args.email)) {
+      throw new Error("Please enter a valid email address");
+    }
+    
+    // Validate password
+    if (!args.password || args.password.length === 0) {
+      throw new Error("Please enter your password");
+    }
+    
     const user = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .withIndex("by_email", (q) => q.eq("email", args.email.toLowerCase().trim()))
       .first();
     
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("No account found with this email. Please check your email or create a new account");
     }
     
     // In production, verify password hash here
@@ -182,7 +204,12 @@ export const updatePassword = mutation({
     const user = await ctx.db.get(args.userId);
     
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("User account not found. Please try signing in again");
+    }
+    
+    // Validate new password
+    if (!args.newPassword || args.newPassword.length < 6) {
+      throw new Error("New password must be at least 6 characters long");
     }
     
     // Verify current password (implement password verification)

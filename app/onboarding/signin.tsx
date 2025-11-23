@@ -66,14 +66,18 @@ export default function SignInScreen() {
 
       const errorMsg = error?.message || String(error);
 
-      if (errorMsg.includes('User not found')) {
-        setErrorMessage('No account found for this email. Please create an account.');
+      // Use the user-friendly error message from the server
+      if (errorMsg.includes('No account found') || errorMsg.includes('not found')) {
+        setErrorMessage('No account found with this email. Please check your email or create a new account');
+      } else if (errorMsg.includes('valid email') || errorMsg.includes('Invalid email')) {
+        setErrorMessage('Please enter a valid email address');
       } else if (errorMsg.includes('password') || errorMsg.includes('credentials')) {
-        setErrorMessage('Incorrect password. Please try again.');
-      } else if (errorMsg.includes('network') || errorMsg.includes('Network')) {
-        setErrorMessage('Network error. Check your connection and try again.');
+        setErrorMessage('Incorrect password. Please try again');
+      } else if (errorMsg.includes('network') || errorMsg.includes('Network') || errorMsg.includes('connection')) {
+        setErrorMessage('Network error. Please check your connection and try again');
       } else {
-        setErrorMessage('Sign in failed. Please try again.');
+        // Use the error message directly if it's already user-friendly
+        setErrorMessage(errorMsg || 'Sign in failed. Please try again');
       }
     }
   };

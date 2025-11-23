@@ -659,6 +659,7 @@ export const updateSubscription = mutation({
     userId: v.id("users"),
     planType: v.union(v.literal('monthly'), v.literal('yearly')),
     phoneNumber: v.optional(v.string()),
+    waafiTransactionId: v.optional(v.string()), // WaafiPay transaction ID from preauthorization
   },
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
@@ -685,16 +686,24 @@ export const updateSubscription = mutation({
       endDate = billingDate + (365 * 24 * 60 * 60 * 1000);
     }
     
+    // Build subscription object
+    const subscriptionData: any = {
+      planType: args.planType,
+      isActive: true,
+      startDate: now, // Subscription starts immediately
+      endDate: endDate, // Subscription ends after plan duration
+      phoneNumber: args.phoneNumber,
+      trialEndDate: trialEndDate, // Trial ends in 3 days
+      billingDate: billingDate, // Billing starts after trial
+    };
+    
+    // Add WaafiPay transaction ID if provided
+    if (args.waafiTransactionId) {
+      subscriptionData.waafiTransactionId = args.waafiTransactionId;
+    }
+    
     await ctx.db.patch(args.userId, {
-      subscription: {
-        planType: args.planType,
-        isActive: true,
-        startDate: now, // Subscription starts immediately
-        endDate: endDate, // Subscription ends after plan duration
-        phoneNumber: args.phoneNumber,
-        trialEndDate: trialEndDate, // Trial ends in 3 days
-        billingDate: billingDate, // Billing starts after trial
-      },
+      subscription: subscriptionData,
       updatedAt: Date.now(),
     });
     

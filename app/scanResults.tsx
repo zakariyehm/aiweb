@@ -1,6 +1,8 @@
 import { analyzeFoodFromImage, type Nutrition } from '@/constants/api';
+import { api } from '@/convex/_generated/api';
 import { Colors } from '@/constants/Colors';
 import type { Id } from '@/convex/_generated/dataModel';
+import { useAction } from 'convex/react';
 import { useAuth } from '@/hooks/useAuth';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import useDailyNutrition from '@/hooks/useDailyNutrition';
@@ -24,6 +26,7 @@ export default function ScanResultsModal() {
   const userId = userSession?.userId as Id<"users"> | undefined;
   const { markDone } = useStreak(userId);
   const { addFoodEntry } = useDailyNutrition(userId);
+  const analyzeFoodAction = useAction(api.actions.analyzeFoodWithOpenAI);
   const slideAnim = useRef(new Animated.Value(50)).current;
   const spinAnim = useRef(new Animated.Value(0)).current;
   const dragY = useRef(new Animated.Value(0)).current;
@@ -71,7 +74,7 @@ export default function ScanResultsModal() {
       const analyzeImage = async () => {
         try {
           console.log('[ScanResults] Starting analysis');
-          const analyzed = await analyzeFoodFromImage(imageUri, abortController.signal);
+          const analyzed = await analyzeFoodFromImage(imageUri, analyzeFoodAction, abortController.signal);
           
           // Check if request was aborted
           if (abortController.signal.aborted) {
@@ -142,7 +145,7 @@ export default function ScanResultsModal() {
         imageUri: imageUri,
       });
     }
-  }, [hasNutritionData, imageUri]); // Removed isAnalyzing, scanResult, params - only trigger when imageUri or hasNutritionData changes
+  }, [hasNutritionData, imageUri, analyzeFoodAction]); // Include analyzeFoodAction in dependencies
 
   // Slide-up animation on mount
   useEffect(() => {

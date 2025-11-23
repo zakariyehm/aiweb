@@ -537,14 +537,19 @@ const OnboardingScreen = () => {
       setAccountInfo('');
       
       const errorMsg = err?.message || String(err);
-      if (errorMsg.includes('already in use')) {
-        setAccountError('This email is already in use. Try signing in.');
-      } else if (errorMsg.includes('invalid')) {
-        setAccountError('Invalid email address.');
-      } else if (errorMsg.includes('password')) {
-        setAccountError('Password should be at least 6 characters.');
+      
+      // Use the user-friendly error message from the server
+      if (errorMsg.includes('already registered') || errorMsg.includes('already in use')) {
+        setAccountError('This email is already registered. Please sign in instead or use a different email');
+      } else if (errorMsg.includes('valid email') || errorMsg.includes('Invalid email')) {
+        setAccountError('Please enter a valid email address');
+      } else if (errorMsg.includes('Password must be') || errorMsg.includes('at least 6 characters')) {
+        setAccountError('Password must be at least 6 characters long');
+      } else if (errorMsg.includes('network') || errorMsg.includes('Network') || errorMsg.includes('connection')) {
+        setAccountError('Network error. Please check your connection and try again');
       } else {
-        setAccountError(err?.message || 'Failed to create account');
+        // Use the error message directly if it's already user-friendly
+        setAccountError(errorMsg || 'Failed to create account. Please try again');
       }
     }
   };
