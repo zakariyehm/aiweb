@@ -178,5 +178,13 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_email", ["email"]),
+  
+  // Admin settings - controls app-wide features
+  adminSettings: defineTable({
+    subscriptionRequired: v.boolean(), // If false, all users can use app for free
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.string()), // Admin email who updated
+  })
+    .index("by_key", ["subscriptionRequired"]),
 });
 

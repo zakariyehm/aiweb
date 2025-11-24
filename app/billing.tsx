@@ -121,6 +121,9 @@ export default function BillingScreen() {
   const waafiCommitAction = useAction(api.actions.waafiPreAuthorizeCommit);
   const waafiCancelAction = useAction(api.actions.waafiPreAuthorizeCancel);
   
+  // Check if subscription is required (admin setting)
+  const isSubscriptionRequired = useQuery(api.users.isSubscriptionRequired);
+  
   // Check if user already has active subscription
   const subscriptionStatus = useQuery(
     api.users.hasActiveSubscription,
@@ -132,10 +135,11 @@ export default function BillingScreen() {
     router.replace('/(tabs)');
   }, []);
   
-  // Redirect users who already have active subscription
+  // Redirect if subscription is not required (free mode) or user already has subscription
   useEffect(() => {
     console.log('[Billing] Subscription status check:', {
       userId,
+      isSubscriptionRequired,
       subscriptionStatus: subscriptionStatus !== undefined ? {
         hasSubscription: subscriptionStatus.hasSubscription,
         isActive: subscriptionStatus.isActive,
@@ -145,6 +149,13 @@ export default function BillingScreen() {
         now: new Date().toISOString(),
       } : 'loading...',
     });
+    
+    // If subscription is not required, redirect to home (free mode)
+    if (isSubscriptionRequired === false) {
+      console.log('[Billing] ✅ Subscription not required (free mode) - redirecting to home');
+      navigateToHome();
+      return;
+    }
     
     if (userId && subscriptionStatus !== undefined) {
       if (subscriptionStatus.hasSubscription && subscriptionStatus.isActive) {
@@ -162,7 +173,7 @@ export default function BillingScreen() {
         console.log('[Billing] ❌ User does not have active subscription - showing billing screen');
       }
     }
-  }, [userId, subscriptionStatus, navigateToHome]);
+  }, [userId, subscriptionStatus, isSubscriptionRequired, navigateToHome]);
 
   const handleClose = () => {
     navigateToHome();

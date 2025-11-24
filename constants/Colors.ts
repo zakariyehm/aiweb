@@ -75,7 +75,7 @@ export const Colors = {
     
     // Card & Container - Elevated surfaces in dark mode
     card: '#1C1C1E',           // iOS dark card color
-    cardSecondary: '#2C2C2E',  // Slightly lighter for contrast
+    cardSecondary: '#232323',  // Slightly lighter for contrast
     border: '#38383A',         // Subtle borders
     divider: '#38383A',
     

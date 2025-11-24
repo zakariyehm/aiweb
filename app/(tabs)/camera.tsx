@@ -15,6 +15,9 @@ export default function CameraScreen() {
   const { userSession } = useAuth();
   const userId = userSession?.userId as Id<"users"> | undefined;
   
+  // Check if subscription is required (admin setting)
+  const isSubscriptionRequired = useQuery(api.users.isSubscriptionRequired);
+  
   // Check subscription status
   const subscriptionStatus = useQuery(
     api.users.hasActiveSubscription,
@@ -36,24 +39,29 @@ export default function CameraScreen() {
       now: new Date().toISOString(),
     });
     
-    // Wait for subscription status to load
-    if (subscriptionStatus === undefined) {
-      console.log('[Camera] Subscription status still loading, waiting...');
+    // Wait for subscription check to load
+    if (isSubscriptionRequired === undefined || subscriptionStatus === undefined) {
+      console.log('[Camera] Subscription check still loading, waiting...');
       return;
     }
     
-    // Check subscription first - isActive already validates: startDate <= now <= endDate
-    if (!subscriptionStatus.hasSubscription || !subscriptionStatus.isActive) {
-      console.log('[Camera] ❌ No active subscription - redirecting to billing');
-      console.log('[Camera] Details:', {
-        hasSubscription: subscriptionStatus.hasSubscription,
-        isActive: subscriptionStatus.isActive,
-      });
-      router.push('/billing');
-      return;
+    // If subscription is not required (free mode), allow access
+    if (isSubscriptionRequired === false) {
+      console.log('[Camera] ✅ Free mode enabled - opening camera');
+      // Continue to open camera
+    } else {
+      // Check subscription - isActive already validates: startDate <= now <= endDate
+      if (!subscriptionStatus.hasSubscription || !subscriptionStatus.isActive) {
+        console.log('[Camera] ❌ No active subscription - redirecting to billing');
+        console.log('[Camera] Details:', {
+          hasSubscription: subscriptionStatus.hasSubscription,
+          isActive: subscriptionStatus.isActive,
+        });
+        router.push('/billing');
+        return;
+      }
+      console.log('[Camera] ✅ User has active subscription - opening camera');
     }
-    
-    console.log('[Camera] ✅ User has active subscription - opening camera');
     
     hasOpenedCameraRef.current = true;
     launchingRef.current = true;
@@ -106,7 +114,7 @@ export default function CameraScreen() {
     } finally {
       launchingRef.current = false;
     }
-  }, [router, subscriptionStatus]);
+  }, [router, subscriptionStatus, isSubscriptionRequired]);
 
   useFocusEffect(
     useCallback(() => {
@@ -129,25 +137,33 @@ export default function CameraScreen() {
         return;
       }
       
-      // Wait for subscription check to complete before deciding what to do
-      if (subscriptionStatus === undefined) {
+      // Wait for subscription checks to complete before deciding what to do
+      if (isSubscriptionRequired === undefined || subscriptionStatus === undefined) {
         console.log('[Camera] ⏳ Subscription status loading...');
         return;
       }
       
       console.log('[Camera] Subscription check result:', {
+        isSubscriptionRequired,
         hasSubscription: subscriptionStatus.hasSubscription,
         isActive: subscriptionStatus.isActive,
+        isFreeMode: subscriptionStatus.isFreeMode,
         planType: subscriptionStatus.planType,
         startDate: subscriptionStatus.startDate ? new Date(subscriptionStatus.startDate).toISOString() : null,
         endDate: subscriptionStatus.endDate ? new Date(subscriptionStatus.endDate).toISOString() : null,
         now: new Date().toISOString(),
-        isInRange: subscriptionStatus.startDate && subscriptionStatus.endDate 
-          ? Date.now() >= subscriptionStatus.startDate && Date.now() <= subscriptionStatus.endDate
-          : 'N/A',
       });
       
-      // Check subscription and navigate to billing if needed
+      // If subscription is not required (free mode), allow access
+      if (isSubscriptionRequired === false) {
+        console.log('[Camera] ✅ Free mode enabled - opening camera');
+        if (!hasOpenedCameraRef.current) {
+          handleOpenCamera();
+        }
+        return;
+      }
+      
+      // If subscription is required, check user's subscription status
       // isActive validates subscription period (startDate <= now <= endDate)
       if (!subscriptionStatus.hasSubscription || !subscriptionStatus.isActive) {
         console.log('[Camera] ❌ Subscription check failed - redirecting to billing');
@@ -169,11 +185,11 @@ export default function CameraScreen() {
         // Reset when screen loses focus so camera can be opened again next time
         hasOpenedCameraRef.current = false;
       };
-    }, [handleOpenCamera, subscriptionStatus, userId, userSession, router])
+    }, [handleOpenCamera, subscriptionStatus, isSubscriptionRequired, userId, userSession, router])
   );
   
   // Show loading state while checking subscription or user session
-  if ((!userSession || subscriptionStatus === undefined) && userId) {
+  if ((!userSession || subscriptionStatus === undefined || isSubscriptionRequired === undefined) && userId) {
     console.log('[Camera] Showing loading state - waiting for data');
     return (
       <View style={styles.container} />

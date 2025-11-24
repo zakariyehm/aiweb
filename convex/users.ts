@@ -588,12 +588,28 @@ export const verifyEmailCode = mutation({
 /**
  * Check if user has active subscription
  * Returns subscription status and whether user can use premium features
+ * First checks admin settings - if subscriptionRequired is false, all users get free access
  */
 export const hasActiveSubscription = query({
   args: {
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
+    // First check admin settings - if subscription is not required, everyone gets free access
+    const adminSettings = await ctx.db
+      .query("adminSettings")
+      .first();
+    
+    // If admin settings exist and subscription is not required, grant free access to all
+    if (adminSettings && !adminSettings.subscriptionRequired) {
+      return { 
+        hasSubscription: false, 
+        isActive: true, // Free access for everyone
+        isFreeMode: true, // Flag to indicate free mode
+      };
+    }
+    
+    // If subscription is required, check user's subscription status
     const user = await ctx.db.get(args.userId);
     
     if (!user) {
@@ -773,6 +789,105 @@ export const deleteAccount = mutation({
     await ctx.db.delete(args.userId);
     
     return { success: true };
+  },
+});
+
+/**
+ * Check if subscription is required (public query - no auth needed)
+ * Used by app to determine if billing screen should be shown
+ */
+export const isSubscriptionRequired = query({
+  args: {},
+  handler: async (ctx) => {
+    const adminSettings = await ctx.db
+      .query("adminSettings")
+      .first();
+    
+    // Default to false (free mode) if no settings exist
+    return adminSettings?.subscriptionRequired ?? false;
+  },
+});
+
+/**
+ * Get admin settings (subscription required toggle)
+ * Only accessible by admin users
+ * Note: If settings don't exist, they will be created by toggleSubscriptionRequired mutation
+ */
+export const getAdminSettings = query({
+  args: {
+    adminEmail: v.string(), // Admin email to verify access
+  },
+  handler: async (ctx, args) => {
+    // Check if user is admin (compare with environment variable)
+    const adminEmailEnv = process.env.ADMIN_EMAIL;
+    
+    if (!adminEmailEnv || args.adminEmail.toLowerCase() !== adminEmailEnv.toLowerCase()) {
+      throw new Error("Unauthorized: Admin access required");
+    }
+    
+    // Get admin settings (queries can only read, not insert)
+    const adminSettings = await ctx.db
+      .query("adminSettings")
+      .first();
+    
+    // If no settings exist, return default (subscription required = false - free mode)
+    if (!adminSettings) {
+      return {
+        subscriptionRequired: false,
+        updatedAt: Date.now(),
+      };
+    }
+    
+    return adminSettings;
+  },
+});
+
+/**
+ * Toggle subscription requirement (admin only)
+ * When OFF: All users (new and existing) can use app for free
+ * When ON: Users need subscription as normal
+ */
+export const toggleSubscriptionRequired = mutation({
+  args: {
+    adminEmail: v.string(), // Admin email to verify access
+    subscriptionRequired: v.boolean(), // New value for the toggle
+  },
+  handler: async (ctx, args) => {
+    // Check if user is admin (compare with environment variable)
+    const adminEmailEnv = process.env.ADMIN_EMAIL;
+    
+    if (!adminEmailEnv || args.adminEmail.toLowerCase() !== adminEmailEnv.toLowerCase()) {
+      throw new Error("Unauthorized: Admin access required");
+    }
+    
+    // Get or create admin settings
+    let adminSettings = await ctx.db
+      .query("adminSettings")
+      .first();
+    
+    if (!adminSettings) {
+      // Create new admin settings
+      await ctx.db.insert("adminSettings", {
+        subscriptionRequired: args.subscriptionRequired,
+        updatedAt: Date.now(),
+        updatedBy: args.adminEmail,
+      });
+    } else {
+      // Update existing settings
+      await ctx.db.patch(adminSettings._id, {
+        subscriptionRequired: args.subscriptionRequired,
+        updatedAt: Date.now(),
+        updatedBy: args.adminEmail,
+      });
+    }
+    
+    return { 
+      success: true, 
+      subscriptionRequired: args.subscriptionRequired,
+      message: args.subscriptionRequired 
+        ? "Subscription is now required for all users" 
+        : "Subscription is now disabled - all users have free access"
+    };
   },
 });
 
