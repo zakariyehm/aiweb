@@ -44,3 +44,11 @@ yarn-error.*
 firestore.rules
 
 app-example
+README.md
+app.config.js
+eas.json
+*.backup
+*.old
+README.md
+app.config.js
+eas.json
